@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sunny Beach Weather</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main class="card">
+    <header>
+      <h1 id="city">☀️ Sunny Beach, Bulgaria</h1>
+      <p>10-Day Weather Forecast</p>
+      <div class="search">
+        <input id="search-input" type="text" placeholder="Search for a city…" autocomplete="off">
+        <ul id="search-results" hidden></ul>
+      </div>
+    </header>
+
+    <section class="now">
+      <div class="temp">23°C</div>
+      <div class="cond">Clear skies</div>
+    </section>
+
+    <section class="forecast" id="forecast"></section>
+    <section class="hourly" id="hourly" hidden></section>
+
+    <footer>Live data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></footer>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
