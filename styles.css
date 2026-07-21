@@ -8,7 +8,18 @@ body {
   align-items: center;
   justify-content: center;
   padding: 1.5rem;
+  transition: background 0.6s ease;
 }
+
+/* Dynamic backgrounds by weather group (night overrides all, defined last) */
+body.weather-clear  { background: linear-gradient(160deg, #38bdf8, #0ea5e9, #0369a1); }
+body.weather-clouds { background: linear-gradient(160deg, #7c93a8, #556677, #37424e); }
+body.weather-rain   { background: linear-gradient(160deg, #5b6b7d, #3c4a59, #232f3b); }
+body.weather-fog    { background: linear-gradient(160deg, #9aa8b5, #6b7885, #4a555f); }
+body.weather-snow   { background: linear-gradient(160deg, #60a5fa, #3b82f6, #1d4ed8); }
+body.weather-storm  { background: linear-gradient(160deg, #414e60, #2a3340, #12181f); }
+body.night          { background: linear-gradient(160deg, #1e293b, #0f172a, #020617); }
+
 .card {
   background: rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(12px);
@@ -19,9 +30,47 @@ body {
   width: 100%;
   box-shadow: 0 12px 40px rgba(0, 0, 0, 0.2);
 }
+
 header { text-align: center; margin-bottom: 2rem; }
+.topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.75rem;
+}
+.icon-btn {
+  background: rgba(255, 255, 255, 0.15);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  width: 2.3rem;
+  height: 2.3rem;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: background 0.15s;
+}
+.icon-btn:hover:not(:disabled) { background: rgba(255, 255, 255, 0.28); }
+.icon-btn:disabled { opacity: 0.5; cursor: default; }
+.unit-toggle {
+  display: flex;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.unit-toggle button {
+  background: transparent;
+  border: none;
+  color: #fff;
+  padding: 0.4rem 0.75rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  transition: background 0.15s;
+}
+.unit-toggle button.active { background: rgba(255, 255, 255, 0.3); font-weight: 700; }
+
 header h1 { font-size: 1.8rem; font-weight: 700; }
 header p { opacity: 0.85; margin-top: 0.35rem; }
+
 .search { position: relative; max-width: 320px; margin: 1rem auto 0; }
 .search input {
   width: 100%;
@@ -42,19 +91,46 @@ header p { opacity: 0.85; margin-top: 0.35rem; }
   right: 0;
   z-index: 10;
   list-style: none;
-  background: rgba(30, 90, 140, 0.95);
+  background: rgba(30, 90, 140, 0.97);
   border: 1px solid rgba(255, 255, 255, 0.25);
   border-radius: 12px;
   overflow: hidden;
   text-align: left;
 }
 .search li { padding: 0.55rem 1rem; cursor: pointer; font-size: 0.9rem; }
-.search li:hover { background: rgba(255, 255, 255, 0.15); }
+.search li:hover, .search li.active { background: rgba(255, 255, 255, 0.18); }
 .search li span { display: block; font-size: 0.75rem; opacity: 0.7; }
 .search li.no-results { cursor: default; opacity: 0.7; }
+
+.loader { display: flex; justify-content: center; padding: 2.5rem 0; }
+.spinner {
+  width: 2.6rem;
+  height: 2.6rem;
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
 .now { text-align: center; margin-bottom: 2rem; }
 .now .temp { font-size: 4rem; font-weight: 300; line-height: 1; }
 .now .cond { opacity: 0.9; margin-top: 0.25rem; }
+.details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(88px, 1fr));
+  gap: 0.6rem;
+  margin-top: 1.5rem;
+}
+.detail {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 0.7rem 0.4rem;
+}
+.detail .di { font-size: 1.1rem; }
+.detail .dv { font-weight: 700; font-size: 1rem; margin-top: 0.2rem; }
+.detail .dl { font-size: 0.7rem; opacity: 0.75; margin-top: 0.1rem; }
+
 .forecast {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
@@ -70,6 +146,11 @@ header p { opacity: 0.85; margin-top: 0.35rem; }
 }
 .day:hover { background: rgba(255, 255, 255, 0.2); }
 .day.selected { background: rgba(255, 255, 255, 0.3); }
+.day .name { font-weight: 600; font-size: 0.9rem; }
+.day .icon { font-size: 1.6rem; margin: 0.5rem 0; }
+.day .hi { font-weight: 700; }
+.day .lo { opacity: 0.7; font-size: 0.85rem; }
+
 .hourly {
   display: flex;
   gap: 0.5rem;
@@ -88,10 +169,20 @@ header p { opacity: 0.85; margin-top: 0.35rem; }
 .hour .icon { font-size: 1.2rem; margin: 0.35rem 0; }
 .hour .t { font-weight: 600; font-size: 0.9rem; }
 .hour .p { font-size: 0.7rem; opacity: 0.8; margin-top: 0.25rem; }
-.day .name { font-weight: 600; font-size: 0.9rem; }
-.day .icon { font-size: 1.6rem; margin: 0.5rem 0; }
-.day .hi { font-weight: 700; }
-.day .lo { opacity: 0.7; font-size: 0.85rem; }
+
 footer { text-align: center; margin-top: 2rem; opacity: 0.7; font-size: 0.8rem; }
 footer a { color: inherit; }
-.error { grid-column: 1 / -1; text-align: center; opacity: 0.85; }
+.error { text-align: center; margin-top: 1rem; color: #fee2e2; opacity: 0.95; }
+
+/* Visible focus for keyboard users */
+button:focus-visible,
+.search input:focus-visible,
+.day:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 2px;
+}
+
+@media (max-width: 480px) {
+  .card { padding: 1.5rem; }
+  .now .temp { font-size: 3.2rem; }
+}
