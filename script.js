@@ -132,6 +132,10 @@ const weatherUrl = (lat, lon) =>
 const geocodeUrl = query =>
   `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(query)}&count=6&language=${lang}`;
 
+// Looks a known place up again to get its name in the current language.
+const placeUrl = id =>
+  `https://geocoding-api.open-meteo.com/v1/get?id=${id}&language=${lang}`;
+
 const forecastEl = document.getElementById("forecast");
 const hourlyEl = document.getElementById("hourly");
 const cityEl = document.getElementById("city");
@@ -154,9 +158,11 @@ const unitFBtn = document.getElementById("unit-f");
 const langBgBtn = document.getElementById("lang-bg");
 const langEnBtn = document.getElementById("lang-en");
 
-// `labelKey` is set for the two built-in labels (own location, default city) so
-// they follow the interface language; searched cities keep the geocoded name.
-const state = { data: null, coords: null, label: "", labelKey: null };
+// How the heading text is kept in sync with the interface language:
+//   `labelKey`  — a built-in label (own location, default city), translated locally.
+//   `geoId`     — a searched city; re-fetched from the geocoding API when needed.
+//   `labelLang` — the language the current label was fetched in.
+const state = { data: null, coords: null, label: "", labelKey: null, geoId: null, labelLang: lang };
 let unit = localStorage.getItem("unit") === "f" ? "f" : "c";
 let selectedDay = null;
 
@@ -250,7 +256,32 @@ function toggleHours(dayIndex) {
   markSelected();
 }
 
-async function loadWeather(lat, lon, label, labelKey = null) {
+// A searched city keeps the name it was found under, so re-fetch it when the
+// interface language no longer matches. Failure is harmless — the old name stays.
+async function relabelCity() {
+  if (!state.geoId || state.labelLang === lang) return;
+  const forLang = lang;
+  try {
+    const res = await fetch(placeUrl(state.geoId));
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const place = await res.json();
+    if (forLang !== lang) return; // language changed again while fetching
+    state.label = [place.name, place.country].filter(Boolean).join(", ");
+    state.labelLang = forLang;
+    cityEl.textContent = state.label;
+    saveCity();
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function saveCity() {
+  const { coords, label, labelKey, geoId, labelLang } = state;
+  localStorage.setItem("lastCity",
+    JSON.stringify({ lat: coords.lat, lon: coords.lon, label, labelKey, geoId, labelLang }));
+}
+
+async function loadWeather(lat, lon, label, meta = {}) {
   selectedDay = null;
   hourlyEl.hidden = true;
   errorEl.hidden = true;
@@ -263,9 +294,12 @@ async function loadWeather(lat, lon, label, labelKey = null) {
     state.data = await res.json();
     state.coords = { lat, lon };
     state.label = label;
-    state.labelKey = labelKey;
-    localStorage.setItem("lastCity", JSON.stringify({ lat, lon, label, labelKey }));
+    state.labelKey = meta.labelKey ?? null;
+    state.geoId = meta.geoId ?? null;
+    state.labelLang = meta.labelLang ?? lang;
+    saveCity();
     render();
+    relabelCity();
   } catch (err) {
     errorEl.textContent = L().loadError;
     errorEl.hidden = false;
@@ -316,7 +350,7 @@ searchInput.addEventListener("input", () => {
       } else {
         searchResults.innerHTML = results.map(r => {
           const region = [r.admin1, r.country].filter(Boolean).join(", ");
-          return `<li role="option" data-lat="${r.latitude}" data-lon="${r.longitude}"
+          return `<li role="option" data-lat="${r.latitude}" data-lon="${r.longitude}" data-id="${r.id}"
             data-label="${r.name}, ${r.country}">${r.name}<span>${region}</span></li>`;
         }).join("");
       }
@@ -356,7 +390,8 @@ searchResults.addEventListener("click", e => {
   if (!item) return;
   hideResults();
   searchInput.value = "";
-  loadWeather(item.dataset.lat, item.dataset.lon, item.dataset.label);
+  loadWeather(item.dataset.lat, item.dataset.lon, item.dataset.label,
+    { geoId: item.dataset.id });
 });
 
 document.addEventListener("click", e => {
@@ -375,7 +410,7 @@ geoBtn.addEventListener("click", () => {
     pos => {
       geoBtn.disabled = false;
       loadWeather(pos.coords.latitude.toFixed(2), pos.coords.longitude.toFixed(2),
-        L().myLocation, "myLocation");
+        L().myLocation, { labelKey: "myLocation" });
     },
     err => {
       geoBtn.disabled = false;
@@ -426,9 +461,13 @@ function applyLang() {
   langEnBtn.setAttribute("aria-pressed", lang === "en");
 
   if (state.data) {
-    // Built-in labels follow the language; geocoded city names stay as fetched.
-    if (state.labelKey) state.label = d[state.labelKey];
+    if (state.labelKey) {
+      state.label = d[state.labelKey];
+      state.labelLang = lang;
+      saveCity();
+    }
     render();
+    relabelCity(); // searched cities need a round trip to the geocoding API
   } else {
     cityEl.textContent = d.loading;
   }
@@ -449,9 +488,15 @@ applyLang();
 const savedCity = JSON.parse(localStorage.getItem("lastCity") || "null");
 if (savedCity) {
   const label = savedCity.labelKey ? L()[savedCity.labelKey] : savedCity.label;
-  loadWeather(savedCity.lat, savedCity.lon, label, savedCity.labelKey ?? null);
+  loadWeather(savedCity.lat, savedCity.lon, label, {
+    labelKey: savedCity.labelKey,
+    geoId: savedCity.geoId,
+    // A built-in label was just translated above; for a searched city fall back to
+    // the current language, so saves predating this field keep their name.
+    labelLang: savedCity.labelKey ? lang : savedCity.labelLang ?? lang
+  });
 } else {
-  loadWeather(42.69, 27.71, L().defaultCity, "defaultCity");
+  loadWeather(42.69, 27.71, L().defaultCity, { labelKey: "defaultCity" });
 }
 
 // ---- Progressive Web App: register the service worker ----

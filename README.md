@@ -64,6 +64,8 @@ Two Open-Meteo endpoints are used, both without authentication:
 
 - `geocoding-api.open-meteo.com/v1/search` — turns a typed city name into
   coordinates.
+- `geocoding-api.open-meteo.com/v1/get` — looks a known place up by id to get its
+  name in another language.
 - `api.open-meteo.com/v1/forecast` — returns `current`, `daily` and `hourly`
   blocks for those coordinates, with `timezone=auto` and `forecast_days=10`.
 
@@ -84,9 +86,16 @@ per language (`en`, `bg`), each with its own `locale` used for weekday names.
 then re-renders. Weather descriptions sit alongside the icons in `CODES`, so each WMO
 code carries both an English and a Bulgarian label.
 
-Two labels are not city names — "My Location" and the default city — so `state`
-stores a `labelKey` for them and they follow the language too. City names found via
-search keep whatever the geocoding API returned.
+The heading is the one string that cannot be translated from a table, so `state`
+tracks where it came from:
+
+- `labelKey` — a built-in label ("My Location", the default city), swapped locally.
+- `geoId` — a searched city. Switching language re-fetches it from
+  `geocoding-api.open-meteo.com/v1/get?id=…`, so "Пловдив, България" becomes
+  "Plovdiv, Bulgaria" and back. If that request fails the previous name simply stays.
+- `labelLang` — the language the current name was fetched in, so the round trip only
+  happens when it is actually needed (including on load, if the language changed
+  since the city was saved).
 
 ### Editing notes
 
