@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sunny Beach Weather — 10-Day Forecast</title>
+  <title>Weather — 10-Day Forecast</title>
   <meta name="description" content="Live weather and a 10-day forecast for any city in the world, powered by Open-Meteo. Search any location or use your own.">
   <meta name="theme-color" content="#0ea5e9">
   <meta property="og:title" content="Weather Forecast">
@@ -25,6 +25,7 @@
     </div>
     <div class="controls">
       <button id="geo-btn" class="icon-btn" type="button" title="Use my location" aria-label="Use my location">📍</button>
+      <button id="radar-btn" class="icon-btn" type="button" title="Precipitation radar" aria-label="Precipitation radar" aria-pressed="false">🛰️</button>
       <div class="seg-toggle" id="unit-toggle" role="group" aria-label="Temperature unit">
         <button id="unit-c" type="button" aria-pressed="true">°C</button>
         <button id="unit-f" type="button" aria-pressed="false">°F</button>
@@ -37,10 +38,37 @@
   </header>
 
   <main class="content">
-    <div id="loader" class="loader" role="status" aria-label="Loading weather" hidden><div class="spinner"></div></div>
+    <nav class="favorites" id="favorites" aria-label="Saved cities" hidden></nav>
+
+    <!-- Placeholder that mirrors the layout while data loads (display: contents,
+         so its two panels drop straight into the page grid). -->
+    <div class="skeleton" id="skeleton" role="status" aria-label="Loading weather" hidden>
+      <div class="panel">
+        <div class="sk sk-title"></div>
+        <div class="sk sk-temp"></div>
+        <div class="sk sk-cond"></div>
+        <div class="sk-tiles">
+          <div class="sk sk-tile"></div><div class="sk sk-tile"></div>
+          <div class="sk sk-tile"></div><div class="sk sk-tile"></div>
+          <div class="sk sk-tile"></div><div class="sk sk-tile"></div>
+        </div>
+      </div>
+      <div class="panel sk-forecast">
+        <div class="sk sk-day"></div><div class="sk sk-day"></div><div class="sk sk-day"></div>
+        <div class="sk sk-day"></div><div class="sk sk-day"></div><div class="sk sk-day"></div>
+        <div class="sk sk-day"></div><div class="sk sk-day"></div><div class="sk sk-day"></div>
+        <div class="sk sk-day"></div>
+      </div>
+    </div>
 
     <section class="now panel" id="now" hidden>
-      <h1 id="city">Loading…</h1>
+      <div class="now-head">
+        <h1 id="city">Loading…</h1>
+        <div class="now-actions">
+          <button id="fav-btn" class="icon-btn" type="button" title="Save this city" aria-label="Save this city" aria-pressed="false">☆</button>
+          <button id="share-btn" class="icon-btn" type="button" title="Copy link" aria-label="Copy link">🔗</button>
+        </div>
+      </div>
       <p class="subtitle" id="subtitle">10-Day Weather Forecast</p>
       <div class="temp" id="temp">–</div>
       <div class="cond" id="cond"></div>
@@ -50,12 +78,18 @@
     <div class="main-col">
       <section class="forecast panel" id="forecast" aria-label="10-day forecast"></section>
       <section class="hourly panel" id="hourly" aria-label="Hourly forecast" hidden></section>
+      <section class="radar panel" id="radar" aria-label="Precipitation radar" hidden>
+        <div class="radar-head"><span id="radar-time"></span></div>
+        <div class="radar-map" id="radar-map"></div>
+      </section>
     </div>
 
     <p class="error" id="error" role="alert" hidden></p>
   </main>
 
   <footer id="footer">Live data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></footer>
+
+  <div class="toast" id="toast" role="status" hidden></div>
 
   <script src="script.js"></script>
 </body>

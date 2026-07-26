@@ -1,5 +1,5 @@
 // Bump this version whenever the app shell changes to invalidate old caches.
-const CACHE = "weather-v4";
+const CACHE = "weather-v5";
 const SHELL = [
   "./",
   "./index.html",
@@ -44,6 +44,10 @@ self.addEventListener("fetch", event => {
     return;
   }
 
-  // App shell: cache-first.
-  event.respondWith(caches.match(request).then(cached => cached || fetch(request)));
+  // App shell: cache-first. Shared links carry a query string (?lat=…), which must
+  // still resolve to the cached page.
+  event.respondWith(
+    caches.match(request, { ignoreSearch: request.mode === "navigate" })
+      .then(cached => cached || fetch(request))
+  );
 });

@@ -1,10 +1,12 @@
 # ☀️ Weather
 
-A dependency-free weather app: current conditions, a 10-day forecast and an hourly
-breakdown for any city in the world. Plain HTML, CSS and JavaScript — no build step,
-no framework, no API key.
+A weather app in plain HTML, CSS and JavaScript: current conditions, a 10-day
+forecast, an hourly breakdown and a precipitation radar for any city in the world.
+No build step, no framework, no API key.
 
 Live data comes from [Open-Meteo](https://open-meteo.com/) (free, no registration).
+The only third-party code is Leaflet, and it is fetched on demand the first time you
+open the radar — everything else runs with zero dependencies.
 
 ## Features
 
@@ -12,10 +14,23 @@ Live data comes from [Open-Meteo](https://open-meteo.com/) (free, no registratio
   interface: labels, weather descriptions, weekday names, errors and city search
   results (Open-Meteo returns localised place names). The language defaults to the
   browser's and is remembered.
-- **Current conditions** — temperature, feels-like, humidity, wind, UV index,
-  precipitation chance, sunrise and sunset.
-- **10-day forecast** — click (or press Enter/Space on) any day to expand its
-  hourly breakdown; click again to collapse.
+- **Current conditions** — temperature, feels-like, humidity, wind with direction,
+  pressure, visibility, UV index, precipitation chance, air quality (European AQI),
+  sunrise and sunset.
+- **10-day forecast** — click (or press Enter/Space on) any day to expand its hourly
+  breakdown; click again to collapse. Selecting a future day turns the panel into
+  that day's summary — high, low, feels-like, max wind, UV, rainfall, sunrise, sunset.
+  Today's hourly strip starts at the current hour, not at midnight.
+- **Temperature curve** — an SVG line over the hourly strip, with markers on the
+  day's high and low. Every value is also labelled in the cell below it.
+- **Precipitation radar** — the 🛰️ button opens a RainViewer radar layer on an
+  OpenStreetMap base (Leaflet is loaded lazily, only on first use).
+- **Saved cities** — the ☆ button pins the current city to a chip bar for one-click
+  switching; saved names follow the interface language too.
+- **Shareable links** — the address bar always holds a link that reproduces what you
+  see (city, coordinates, language, units); 🔗 copies it.
+- **Stays fresh** — data older than 30 minutes is refreshed silently when you return
+  to the tab.
 - **City search** — type at least 2 characters to search the Open-Meteo geocoding
   API. Results are debounced by 300 ms and navigable with ↑/↓/Enter/Escape.
 - **Geolocation** — the 📍 button loads the forecast for your current position.
@@ -54,13 +69,13 @@ Cloudflare Pages or any other static host.
 | `index.html` | Markup, meta tags, PWA manifest link |
 | `styles.css` | Layout, weather-dependent gradients, responsive breakpoints |
 | `script.js` | Translations, API calls, rendering, search, units, geolocation, state |
-| `service-worker.js` | Offline caching (cache-first shell, network-first API) |
+| `service-worker.js` | Offline caching (cache-first shell, network-first API); shared links resolve to the cached page |
 | `manifest.json` | PWA metadata for installation |
 | `icon.svg` | App icon / favicon |
 
 ## How it works
 
-Two Open-Meteo endpoints are used, both without authentication:
+The data sources, none of which need an account or a key:
 
 - `geocoding-api.open-meteo.com/v1/search` — turns a typed city name into
   coordinates.
@@ -68,6 +83,11 @@ Two Open-Meteo endpoints are used, both without authentication:
   name in another language.
 - `api.open-meteo.com/v1/forecast` — returns `current`, `daily` and `hourly`
   blocks for those coordinates, with `timezone=auto` and `forecast_days=10`.
+- `air-quality-api.open-meteo.com/v1/air-quality` — the European AQI, requested in
+  parallel with the forecast. It is optional: if it fails, the tile is left out and
+  nothing else is affected.
+- `api.rainviewer.com` + `tile.openstreetmap.org` — radar frames and the base map,
+  used only while the radar panel is open.
 
 Open-Meteo returns [WMO weather codes](https://open-meteo.com/en/docs); the `CODES`
 table at the top of `script.js` maps each one to a label and an emoji icon, with a
@@ -75,8 +95,16 @@ separate night icon for clear and partly-cloudy conditions. `groupFor()` reduces
 same code to one of six background themes.
 
 Everything renders from a single `state` object holding the last API response, the
-coordinates and the display label, so switching units or language simply re-renders —
-no refetch.
+coordinates and the display label, so switching units, language or selected day
+simply re-renders — no refetch.
+
+### The hourly strip
+
+`renderHours()` filters the 240 hourly readings down to one day, dropping past hours
+when that day is today, and emits an SVG curve plus one cell per hour inside a shared
+horizontal scroller. The curve's geometry depends on the cell size, so `HOUR_W` and
+`HOUR_GAP` in `script.js` must stay equal to `.hour`'s width and `.hours`'s gap in
+`styles.css`.
 
 ### Translations
 
@@ -101,6 +129,8 @@ tracks where it came from:
 
 - Adding a language: add a block to `I18N` with the same keys, a label per code in
   `CODES`, and a button wired to `setLang()`.
+- Changing the hourly strip's cell size: update `HOUR_W`/`HOUR_GAP` and `styles.css`
+  together, or the curve will drift out of alignment with the cells.
 - Adding a weather code: add a row to `CODES` (icon plus a label per language) and,
   if it needs its own background, extend `groupFor()` plus the matching
   `body.weather-*` rule in `styles.css`.
@@ -109,5 +139,8 @@ tracks where it came from:
 
 ## Credits
 
-Weather data by [Open-Meteo](https://open-meteo.com/) under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- Weather, geocoding and air quality by [Open-Meteo](https://open-meteo.com/) under
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+- Radar imagery by [RainViewer](https://www.rainviewer.com/), base map
+  © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, rendered
+  with [Leaflet](https://leafletjs.com/).
