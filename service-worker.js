@@ -1,5 +1,5 @@
 // Bump this version whenever the app shell changes to invalidate old caches.
-const CACHE = "weather-v2";
+const CACHE = "weather-v3";
 const SHELL = [
   "./",
   "./index.html",

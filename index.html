@@ -17,7 +17,7 @@
 </head>
 <body>
   <header class="navbar">
-    <div class="brand">☀️ Weather</div>
+    <div class="brand" id="brand">☀️ Weather</div>
     <div class="search">
       <input id="search-input" type="text" placeholder="Search for a city…" autocomplete="off"
         role="combobox" aria-expanded="false" aria-controls="search-results" aria-autocomplete="list" aria-label="Search for a city">
@@ -25,9 +25,13 @@
     </div>
     <div class="controls">
       <button id="geo-btn" class="icon-btn" type="button" title="Use my location" aria-label="Use my location">📍</button>
-      <div class="unit-toggle" role="group" aria-label="Temperature unit">
+      <div class="seg-toggle" id="unit-toggle" role="group" aria-label="Temperature unit">
         <button id="unit-c" type="button" aria-pressed="true">°C</button>
         <button id="unit-f" type="button" aria-pressed="false">°F</button>
+      </div>
+      <div class="seg-toggle" id="lang-toggle" role="group" aria-label="Language">
+        <button id="lang-bg" type="button" lang="bg" aria-pressed="false">БГ</button>
+        <button id="lang-en" type="button" lang="en" aria-pressed="true">EN</button>
       </div>
     </div>
   </header>
@@ -37,7 +41,7 @@
 
     <section class="now panel" id="now" hidden>
       <h1 id="city">Loading…</h1>
-      <p class="subtitle">10-Day Weather Forecast</p>
+      <p class="subtitle" id="subtitle">10-Day Weather Forecast</p>
       <div class="temp" id="temp">–</div>
       <div class="cond" id="cond"></div>
       <div class="details" id="details"></div>
@@ -51,7 +55,7 @@
     <p class="error" id="error" role="alert" hidden></p>
   </main>
 
-  <footer>Live data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></footer>
+  <footer id="footer">Live data from <a href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a></footer>
 
   <script src="script.js"></script>
 </body>
