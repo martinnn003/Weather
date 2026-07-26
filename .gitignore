@@ -3,3 +3,7 @@
 
 # Chat archive (personal log, never push to GitHub)
 chat-log.md
+
+# Node
+node_modules/
+dist/
