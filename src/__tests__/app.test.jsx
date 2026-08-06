@@ -228,12 +228,27 @@ describe("the app", () => {
     expect(within(bar).getByText("София, България")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("favorites"))).toHaveLength(1);
 
-    await waitFor(() => expect(location.search).toContain("lat=42.7"));
-    expect(location.search).toContain("lang=bg");
-    expect(location.search).toContain("key=defaultCity");
-
     fireEvent.click(within(bar).getByRole("button", { name: /Премахни/ }));
     expect(screen.queryByRole("navigation", { name: "Запазени градове" })).toBeNull();
+  });
+
+  it("leaves the address bare at home and fills it in once you travel", async () => {
+    show();
+    await screen.findByText("София, България");
+    await waitFor(() => expect(location.search).toBe(""));
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 }));
+    await screen.findByText("Пловдив, България");
+
+    await waitFor(() => expect(location.search).toContain("lat=42.15"));
+    expect(location.search).toContain("id=728193");
+    expect(location.search).toContain("lang=bg");
+    expect(location.search).toContain("unit=c");
+
+    fireEvent.click(screen.getByRole("link", { name: "MeteoDita — начало" }));
+    await screen.findByText("София, България");
+    await waitFor(() => expect(location.search).toBe("")); // and bare again on the way back
   });
 
   it("starts from a shared link", async () => {

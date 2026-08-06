@@ -33,8 +33,16 @@ export function loadPlace() {
 
 export const savePlace = place => localStorage.setItem("lastCity", JSON.stringify(place));
 
-// Keeps the address bar shareable: it always describes what is on screen.
+// Keeps the address bar shareable: it always describes what is on screen. Home is the
+// exception — it is what the site shows without being asked, so there is nothing to
+// describe and the bare address stays bare. Language and unit live in storage too, so
+// dropping them here costs the reader nothing; only a link shared from the home page
+// arrives in the reader's own language rather than the sender's.
 export function syncUrl(place, name, lang, unit) {
+  if (place.labelKey === "defaultCity" && samePlace(place, DEFAULT_PLACE)) {
+    history.replaceState(null, "", location.pathname);
+    return;
+  }
   const query = new URLSearchParams({ lat: place.lat, lon: place.lon, lang, unit });
   if (place.geoId) query.set("id", place.geoId);
   if (place.labelKey) query.set("key", place.labelKey);
