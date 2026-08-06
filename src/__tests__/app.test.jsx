@@ -60,6 +60,17 @@ const fetchStub = vi.fn(url => {
 
 const show = () => render(<SettingsProvider><App /></SettingsProvider>);
 
+// jsdom has no geolocation at all, so it is added rather than replaced.
+const stubGeolocation = () => {
+  const getCurrentPosition = vi.fn(onOk =>
+    onOk({ coords: { latitude: 42.15, longitude: 24.75 } }));
+  Object.defineProperty(navigator, "geolocation", {
+    configurable: true,
+    value: { getCurrentPosition }
+  });
+  return getCurrentPosition;
+};
+
 beforeEach(() => {
   vi.stubGlobal("fetch", fetchStub);
   localStorage.clear();
@@ -77,14 +88,14 @@ describe("the app", () => {
   it("shows the placeholder first, then the forecast", async () => {
     show();
     expect(screen.getByRole("status", { name: "Зареждане на прогнозата" })).toBeTruthy();
-    expect(await screen.findByText("Слънчев бряг, България")).toBeTruthy();
+    expect(await screen.findByText("София, България")).toBeTruthy();
     expect(screen.getByText("26°C")).toBeTruthy();
     expect(screen.getAllByRole("button", { pressed: false }).length).toBeGreaterThan(0);
   });
 
   it("names the first two days and lists ten", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     expect(within(forecastPanel).getAllByRole("button")).toHaveLength(10);
     expect(within(forecastPanel).getByText("Днес")).toBeTruthy();
@@ -93,7 +104,7 @@ describe("the app", () => {
 
   it("dates every day, so the repeated weekday names stay apart", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // 26 July … 4 August: the tenth card rolls over into the next month.
     expect(within(forecastPanel).getByText("26 юли")).toBeTruthy();
@@ -106,7 +117,7 @@ describe("the app", () => {
 
   it("shows live readings for today, including wind direction and air quality", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     expect(screen.getByText("Вятър · ЮИ ↖")).toBeTruthy();
     expect(screen.getByText("Въздух · Задоволително")).toBeTruthy();
     expect(screen.getByText("1013 hPa")).toBeTruthy();
@@ -115,7 +126,7 @@ describe("the app", () => {
 
   it("opens the hourly strip from the current hour for today", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: /^Днес/ }));
     const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
     expect(within(strip).getByText("18:00")).toBeTruthy();
@@ -125,7 +136,7 @@ describe("the app", () => {
 
   it("turns the panel into a day summary when a future day is picked", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     fireEvent.click(within(forecastPanel).getAllByRole("button")[3]);
 
@@ -142,7 +153,7 @@ describe("the app", () => {
 
   it("switches units", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "°F" }));
     expect(await screen.findByText("78°F")).toBeTruthy();
     expect(screen.getByText("29.91 inHg")).toBeTruthy();
@@ -150,17 +161,54 @@ describe("the app", () => {
 
   it("translates the whole interface, including the city name", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "EN" }));
-    expect(await screen.findByText("Sunny Beach, Bulgaria")).toBeTruthy();
+    expect(await screen.findByText("Sofia, Bulgaria")).toBeTruthy();
     expect(screen.getByText("10-Day Weather Forecast")).toBeTruthy();
     expect(screen.getByText("Pressure")).toBeTruthy();
     expect(document.documentElement.lang).toBe("en");
   });
 
+  it("returns to the home city when the brand is clicked", async () => {
+    show();
+    await screen.findByText("София, България");
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 }));
+    await screen.findByText("Пловдив, България");
+
+    const brand = screen.getByRole("link", { name: "MeteoDita — начало" });
+    expect(brand.getAttribute("href")).toBe("./"); // openable in a tab, not a bare button
+    fireEvent.click(brand);
+    expect(await screen.findByText("София, България")).toBeTruthy();
+  });
+
+  it("asks for no permission on the way home", async () => {
+    const getCurrentPosition = stubGeolocation();
+    show();
+    await screen.findByText("София, България");
+
+    fireEvent.click(screen.getByRole("link", { name: "MeteoDita — начало" }));
+    expect(getCurrentPosition).not.toHaveBeenCalled(); // a logo is not a location prompt
+    fireEvent.click(screen.getByRole("button", { name: "Моето местоположение" }));
+    expect(getCurrentPosition).toHaveBeenCalled();
+  });
+
+  it("leaves a modified click to the browser, so the brand opens in a new tab", async () => {
+    show();
+    await screen.findByText("София, България");
+
+    fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
+    fireEvent.click(await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 }));
+    await screen.findByText("Пловдив, България");
+
+    fireEvent.click(screen.getByRole("link", { name: "MeteoDita — начало" }), { ctrlKey: true });
+    expect(screen.getByText("Пловдив, България")).toBeTruthy(); // this tab stayed put
+  });
+
   it("searches, then re-translates the found city when the language changes", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
 
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
     const option = await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 });
@@ -173,14 +221,14 @@ describe("the app", () => {
 
   it("saves a city to the chip bar and keeps the link shareable", async () => {
     show();
-    await screen.findByText("Слънчев бряг, България");
+    await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "Запази този град" }));
 
     const bar = await screen.findByRole("navigation", { name: "Запазени градове" });
-    expect(within(bar).getByText("Слънчев бряг, България")).toBeTruthy();
+    expect(within(bar).getByText("София, България")).toBeTruthy();
     expect(JSON.parse(localStorage.getItem("favorites"))).toHaveLength(1);
 
-    await waitFor(() => expect(location.search).toContain("lat=42.69"));
+    await waitFor(() => expect(location.search).toContain("lat=42.7"));
     expect(location.search).toContain("lang=bg");
     expect(location.search).toContain("key=defaultCity");
 

@@ -64,6 +64,16 @@ export default function App() {
     );
   }, [dict]);
 
+  // Home is the page the app opens on, not the last city looked at — that one is in
+  // storage already, so returning to it would leave the brand looking like dead text.
+  // Asking the browser for a position instead would put a permission prompt behind a
+  // logo, which is not what a logo is for; the 📍 button is there for that.
+  const goHome = useCallback(() => {
+    setPlace(DEFAULT_PLACE);
+    setRadarOpen(false);
+    setGeoError(null);
+  }, []);
+
   const share = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(location.href);
@@ -82,6 +92,7 @@ export default function App() {
       <Navbar
         onPick={setPlace}
         onLocate={locate}
+        onHome={goHome}
         radarOpen={radarOpen}
         onToggleRadar={() => setRadarOpen(open => !open)}
       />

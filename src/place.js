@@ -2,7 +2,7 @@
 //   labelKey — a built-in name ("myLocation", "defaultCity"), translated locally
 //   geoId    — an Open-Meteo place id, so the name can be re-fetched per language
 //   label    — the name as it was found; the fallback while a translation loads
-export const DEFAULT_PLACE = { lat: 42.69, lon: 27.71, label: "", labelKey: "defaultCity", geoId: null };
+export const DEFAULT_PLACE = { lat: 42.7, lon: 23.32, label: "", labelKey: "defaultCity", geoId: null };
 
 export const placeFromCity = city => ({
   lat: Number(city.latitude), lon: Number(city.longitude),

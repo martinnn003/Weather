@@ -39,7 +39,7 @@ when the radar is opened.
 - **Dynamic background** — the gradient follows the weather (clear, clouds, rain,
   fog, snow, storm) and switches to a dark palette at night.
 - **Remembers your last city** — stored in `localStorage`, restored on next visit.
-  First-ever visit defaults to Sunny Beach, Bulgaria.
+  First-ever visit defaults to Sofia, Bulgaria, and the brand returns there.
 - **Installable PWA, works offline** — the app shell is cached by a service worker;
   API responses are network-first with a cached fallback.
 - **Responsive** — single column on mobile, two-column dashboard on wide screens.

@@ -20,13 +20,30 @@ function SegToggle({ label, options, value, onChange }) {
   );
 }
 
-export default function Navbar({ onPick, onLocate, radarOpen, onToggleRadar }) {
+export default function Navbar({ onPick, onLocate, onHome, radarOpen, onToggleRadar }) {
   const { dict, lang, setLang, unit, setUnit } = useSettings();
+
+  // A real link, so it can be opened in a tab or copied; a plain click is handled in
+  // the app instead, which resets the view without paying for a full reload.
+  const home = e => {
+    if (e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    e.preventDefault();
+    onHome();
+  };
 
   return (
     <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-white/20
       bg-white/10 px-4 py-3 backdrop-blur-md sm:gap-4 sm:px-7">
-      <div className="mr-auto text-lg font-bold whitespace-nowrap sm:mr-0">{dict.brand}</div>
+      <a
+        href="./"
+        onClick={home}
+        aria-label={dict.homeLabel}
+        className="mr-auto rounded-lg text-lg font-bold whitespace-nowrap transition
+          hover:opacity-75 focus-visible:outline focus-visible:outline-2
+          focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:mr-0"
+      >
+        {dict.brand}
+      </a>
 
       <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
         <SearchBox onPick={onPick} />

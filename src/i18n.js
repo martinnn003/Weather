@@ -8,8 +8,9 @@ const MONTHS_BG = ["яну", "фев", "мар", "апр", "май", "юни", "
 export const I18N = {
   en: {
     locale: "en-US",
-    title: "Weather — 10-Day Forecast",
-    brand: "☀️ Weather",
+    title: "MeteoDita — 10-Day Forecast",
+    brand: "☀️ MeteoDita", // the name is not translated, only what surrounds it
+    homeLabel: "MeteoDita — home",
     searchPlaceholder: "Search for a city…",
     searchLabel: "Search for a city",
     resultsLabel: "City search results",
@@ -56,15 +57,16 @@ export const I18N = {
     geoFailed: "Could not get your location. Please allow location access.",
     footerPrefix: "Live data from ",
     myLocation: "My Location",
-    defaultCity: "Sunny Beach, Bulgaria",
+    defaultCity: "Sofia, Bulgaria",
     unknown: "Unknown",
     dateShort: (day, month) => `${MONTHS_EN[month]} ${day}`,
     dayAria: (name, date, cond, hi, lo) => `${name}, ${date}: ${cond}, high ${hi}, low ${lo}`
   },
   bg: {
     locale: "bg-BG",
-    title: "Времето — прогноза за 10 дни",
-    brand: "☀️ Времето",
+    title: "MeteoDita — прогноза за 10 дни",
+    brand: "☀️ MeteoDita",
+    homeLabel: "MeteoDita — начало",
     searchPlaceholder: "Търси град…",
     searchLabel: "Търсене на град",
     resultsLabel: "Резултати от търсенето",
@@ -111,7 +113,7 @@ export const I18N = {
     geoFailed: "Местоположението не можа да бъде определено. Разреши достъпа до локация.",
     footerPrefix: "Данни в реално време от ",
     myLocation: "Моето местоположение",
-    defaultCity: "Слънчев бряг, България",
+    defaultCity: "София, България",
     unknown: "Неизвестно",
     dateShort: (day, month) => `${day} ${MONTHS_BG[month]}`,
     dayAria: (name, date, cond, hi, lo) => `${name}, ${date}: ${cond}, макс. ${hi}, мин. ${lo}`

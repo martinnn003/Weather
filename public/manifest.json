@@ -1,6 +1,6 @@
 {
-  "name": "Sunny Beach Weather",
-  "short_name": "Weather",
+  "name": "MeteoDita — Weather Forecast",
+  "short_name": "MeteoDita",
   "description": "Live weather and a 10-day forecast for any city, powered by Open-Meteo.",
   "start_url": "./",
   "scope": "./",
