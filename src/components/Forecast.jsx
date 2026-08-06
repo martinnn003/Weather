@@ -11,6 +11,12 @@ export default function Forecast({ data, selectedDay, onSelect }) {
     return new Date(daily.time[i]).toLocaleDateString(dict.locale, { weekday: "short" });
   };
 
+  // Weekday names come round again over ten days, so the date says which "Mon" this is.
+  // The month is spelled out rather than numeric: "8/6" reads as August in one locale
+  // and as June in the other, while "Aug 6" and "6.08" cannot be misread.
+  const dateFor = i =>
+    new Date(daily.time[i]).toLocaleDateString(dict.locale, { day: "numeric", month: "short" });
+
   return (
     <section
       aria-label={dict.forecastLabel}
@@ -19,6 +25,7 @@ export default function Forecast({ data, selectedDay, onSelect }) {
       {daily.time.map((date, i) => {
         const { icon, label } = weatherFor(daily.weather_code[i], lang);
         const name = nameFor(i);
+        const dayDate = dateFor(i);
         const hi = fmt.temp(daily.temperature_2m_max[i]);
         const lo = fmt.temp(daily.temperature_2m_min[i]);
         return (
@@ -27,7 +34,7 @@ export default function Forecast({ data, selectedDay, onSelect }) {
             role="button"
             tabIndex={0}
             aria-pressed={selectedDay === i}
-            aria-label={dict.dayAria(name, label ?? dict.unknown, hi, lo)}
+            aria-label={dict.dayAria(name, dayDate, label ?? dict.unknown, hi, lo)}
             onClick={() => onSelect(i)}
             onKeyDown={e => {
               if (e.key !== "Enter" && e.key !== " ") return;
@@ -39,7 +46,8 @@ export default function Forecast({ data, selectedDay, onSelect }) {
               ${selectedDay === i ? "bg-white/30" : "bg-white/10"}`}
           >
             <div className="text-sm font-semibold">{name}</div>
-            <div className="my-2 text-2xl">{icon}</div>
+            <div className="text-xs opacity-65">{dayDate}</div>
+            <div className="mt-1.5 mb-2 text-2xl">{icon}</div>
             <div className="font-bold">{hi}</div>
             <div className="text-sm opacity-70">{lo}</div>
           </div>

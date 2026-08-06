@@ -5,8 +5,11 @@ import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 
 // A ten-day forecast shaped exactly like Open-Meteo's, generated instead of stored
-// so the fixture stays readable.
-const days = Array.from({ length: 10 }, (_, i) => `2026-07-${String(26 + i).padStart(2, "0")}`);
+// so the fixture stays readable. The run starts on 26 July and rolls over into
+// August, which is why the dates are counted rather than written out: "2026-07-32"
+// is what naive counting produces, and it is not a date.
+const days = Array.from({ length: 10 }, (_, i) =>
+  new Date(Date.UTC(2026, 6, 26 + i)).toISOString().slice(0, 10));
 const hourCount = days.length * 24;
 
 const forecast = {
@@ -86,6 +89,20 @@ describe("the app", () => {
     expect(within(forecastPanel).getAllByRole("button")).toHaveLength(10);
     expect(within(forecastPanel).getByText("Днес")).toBeTruthy();
     expect(within(forecastPanel).getByText("Утре")).toBeTruthy();
+  });
+
+  it("dates every day, so the repeated weekday names stay apart", async () => {
+    show();
+    await screen.findByText("Слънчев бряг, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    // 26 July … 4 August: the tenth card rolls over into the next month.
+    expect(within(forecastPanel).getByText("26.07")).toBeTruthy();
+    expect(within(forecastPanel).getByText("4.08")).toBeTruthy();
+    // 28 July and 4 August are both Tuesdays: only the date tells them apart.
+    expect(within(forecastPanel).getAllByText("вт")).toHaveLength(2);
+    expect(within(forecastPanel).getByText("28.07")).toBeTruthy();
+    expect(within(forecastPanel).getByText("4.08")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Днес, 26\.07:/ })).toBeTruthy();
   });
 
   it("shows live readings for today, including wind direction and air quality", async () => {

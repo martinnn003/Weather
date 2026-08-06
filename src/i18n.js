@@ -52,7 +52,7 @@ export const I18N = {
     myLocation: "My Location",
     defaultCity: "Sunny Beach, Bulgaria",
     unknown: "Unknown",
-    dayAria: (name, cond, hi, lo) => `${name}: ${cond}, high ${hi}, low ${lo}`
+    dayAria: (name, date, cond, hi, lo) => `${name}, ${date}: ${cond}, high ${hi}, low ${lo}`
   },
   bg: {
     locale: "bg-BG",
@@ -106,7 +106,7 @@ export const I18N = {
     myLocation: "Моето местоположение",
     defaultCity: "Слънчев бряг, България",
     unknown: "Неизвестно",
-    dayAria: (name, cond, hi, lo) => `${name}: ${cond}, макс. ${hi}, мин. ${lo}`
+    dayAria: (name, date, cond, hi, lo) => `${name}, ${date}: ${cond}, макс. ${hi}, мин. ${lo}`
   }
 };
 
