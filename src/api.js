@@ -26,10 +26,18 @@ export async function fetchWeather(lat, lon) {
   };
 }
 
+// `language` picks the index that is searched, not just the language of the answer:
+// the English index holds only Latin names, so "София" finds nothing under `en`.
+// The script the user typed in therefore decides where to look — someone typing
+// Latin keeps their own language, whatever the interface is set to.
+const CYRILLIC = /[Ѐ-ӿ]/;
+
+export const searchLangFor = (query, lang) => (CYRILLIC.test(query) ? "bg" : lang);
+
 // Open-Meteo localises place names via `language`.
 export async function searchCities(query, lang) {
   const { results } = await fetch("https://geocoding-api.open-meteo.com/v1/search" +
-    `?name=${encodeURIComponent(query)}&count=6&language=${lang}`).then(json);
+    `?name=${encodeURIComponent(query)}&count=6&language=${searchLangFor(query, lang)}`).then(json);
   return results ?? [];
 }
 

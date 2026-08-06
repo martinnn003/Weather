@@ -4,6 +4,7 @@ import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { placeFromUrl, samePlace } from "../place.js";
+import { searchLangFor } from "../api.js";
 
 describe("translations", () => {
   it("carries the same keys in every language", () => {
@@ -122,6 +123,19 @@ describe("hourly strip", () => {
     expect(sparkGeometry([5, 9, 7]).markers).toHaveLength(2);
     expect(sparkGeometry([5, 5, 5]).markers).toHaveLength(1); // flat day: one marker
     expect(sparkGeometry([5])).toBeNull();
+  });
+});
+
+describe("city search", () => {
+  it("searches the Bulgarian index for anything typed in Cyrillic", () => {
+    expect(searchLangFor("София", "en")).toBe("bg");
+    expect(searchLangFor("Пловдив", "bg")).toBe("bg");
+  });
+
+  it("leaves a Latin query in the language of the interface", () => {
+    expect(searchLangFor("Sofia", "en")).toBe("en");
+    expect(searchLangFor("Sofia", "bg")).toBe("bg");
+    expect(searchLangFor("München", "en")).toBe("en");
   });
 });
 
