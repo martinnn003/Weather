@@ -5,17 +5,22 @@ export default function Forecast({ data, selectedDay, onSelect }) {
   const { dict, lang, fmt } = useSettings();
   const { daily } = data;
 
+  // A date arrives as "2026-08-07" and means that day wherever the place is. Parsing it
+  // to a Date pins it to UTC midnight, which a browser west of Greenwich then reads back
+  // as the day before — so the weekday is asked for in UTC, and the date is read off the
+  // string itself.
   const nameFor = i => {
     if (i === 0) return dict.today;
     if (i === 1) return dict.tomorrow;
-    return new Date(daily.time[i]).toLocaleDateString(dict.locale, { weekday: "short" });
+    return new Date(daily.time[i])
+      .toLocaleDateString(dict.locale, { weekday: "short", timeZone: "UTC" });
   };
 
   // Weekday names come round again over ten days, so the date says which "Mon" this is.
-  // The month is spelled out rather than numeric: "8/6" reads as August in one locale
-  // and as June in the other, while "Aug 6" and "6.08" cannot be misread.
-  const dateFor = i =>
-    new Date(daily.time[i]).toLocaleDateString(dict.locale, { day: "numeric", month: "short" });
+  const dateFor = i => {
+    const [, month, day] = daily.time[i].split("-");
+    return dict.dateShort(Number(day), Number(month) - 1);
+  };
 
   return (
     <section

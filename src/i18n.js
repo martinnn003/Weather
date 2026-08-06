@@ -1,3 +1,9 @@
+// Intl is no help for the short month: Bulgarian CLDR renders `month: "short"` as a
+// number, so "7 август" comes out "7.08" while English gets "Aug 7". The abbreviations
+// are therefore spelled out here, the way the compass and air-quality labels already are.
+const MONTHS_EN = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+const MONTHS_BG = ["яну", "фев", "мар", "апр", "май", "юни", "юли", "авг", "сеп", "окт", "ное", "дек"];
+
 // Interface translations. Both blocks must carry the same keys — a test enforces it.
 export const I18N = {
   en: {
@@ -52,6 +58,7 @@ export const I18N = {
     myLocation: "My Location",
     defaultCity: "Sunny Beach, Bulgaria",
     unknown: "Unknown",
+    dateShort: (day, month) => `${MONTHS_EN[month]} ${day}`,
     dayAria: (name, date, cond, hi, lo) => `${name}, ${date}: ${cond}, high ${hi}, low ${lo}`
   },
   bg: {
@@ -106,6 +113,7 @@ export const I18N = {
     myLocation: "Моето местоположение",
     defaultCity: "Слънчев бряг, България",
     unknown: "Неизвестно",
+    dateShort: (day, month) => `${day} ${MONTHS_BG[month]}`,
     dayAria: (name, date, cond, hi, lo) => `${name}, ${date}: ${cond}, макс. ${hi}, мин. ${lo}`
   }
 };

@@ -46,9 +46,12 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
     ? weatherFor(daily.weather_code[day], lang)
     : weatherFor(current.weather_code, lang, isDay);
 
+  // Read in UTC, like the forecast strip: a date means that day wherever the place is,
+  // and parsing it pins it to UTC midnight, which a browser west of Greenwich would
+  // otherwise read back as the day before.
   const subtitle = day > 0
     ? new Date(daily.time[day]).toLocaleDateString(dict.locale,
-        { weekday: "long", day: "numeric", month: "long" })
+        { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
     : dict.subtitle;
 
   const headline = day > 0

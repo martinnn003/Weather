@@ -21,6 +21,19 @@ describe("translations", () => {
     }
   });
 
+  it("abbreviates the short date the way each language reads it", () => {
+    expect(I18N.en.dateShort(7, 7)).toBe("Aug 7");
+    expect(I18N.bg.dateShort(7, 7)).toBe("7 авг");
+    expect(I18N.en.dateShort(1, 0)).toBe("Jan 1");
+    expect(I18N.bg.dateShort(31, 11)).toBe("31 дек");
+    // Intl would give Bulgarian "7.08" here, which is why the months are spelled out.
+    for (const language of LANGS) {
+      for (let month = 0; month < 12; month++) {
+        expect(I18N[language].dateShort(7, month)).not.toMatch(/\d\D*\d/);
+      }
+    }
+  });
+
   it("prefers the link, then the stored choice, then the browser", () => {
     expect(pickLang("bg", "en", "en-US")).toBe("bg");
     expect(pickLang(null, "bg", "en-US")).toBe("bg");

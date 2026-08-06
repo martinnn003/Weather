@@ -96,13 +96,12 @@ describe("the app", () => {
     await screen.findByText("Слънчев бряг, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // 26 July … 4 August: the tenth card rolls over into the next month.
-    expect(within(forecastPanel).getByText("26.07")).toBeTruthy();
-    expect(within(forecastPanel).getByText("4.08")).toBeTruthy();
+    expect(within(forecastPanel).getByText("26 юли")).toBeTruthy();
+    expect(within(forecastPanel).getByText("4 авг")).toBeTruthy();
     // 28 July and 4 August are both Tuesdays: only the date tells them apart.
     expect(within(forecastPanel).getAllByText("вт")).toHaveLength(2);
-    expect(within(forecastPanel).getByText("28.07")).toBeTruthy();
-    expect(within(forecastPanel).getByText("4.08")).toBeTruthy();
-    expect(screen.getByRole("button", { name: /^Днес, 26\.07:/ })).toBeTruthy();
+    expect(within(forecastPanel).getByText("28 юли")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:/ })).toBeTruthy();
   });
 
   it("shows live readings for today, including wind direction and air quality", async () => {
