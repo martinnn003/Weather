@@ -13,6 +13,7 @@ export function useWeather(place) {
   const fetchedAt = useRef(0);
 
   useEffect(() => {
+    if (place.lat == null) return; // a slug link, still waiting for its coordinates
     const isNewPlace = shownPlace.current !== place;
     shownPlace.current = place;
     let cancelled = false;

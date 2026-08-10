@@ -27,8 +27,11 @@ when the radar is opened.
   OpenStreetMap base (Leaflet is loaded lazily, only on first use).
 - **Saved cities** — the ☆ button pins the current city to a chip bar for one-click
   switching; saved names follow the interface language too.
-- **Shareable links** — the address bar always holds a link that reproduces what you
-  see (city, coordinates, language, units); 🔗 copies it.
+- **Shareable links** — every city has an address of its own, `/plovdiv-bulgaria-728193`,
+  which reproduces what you see (language and units ride along in the query string);
+  🔗 copies it. Only the trailing id — Open-Meteo's place id — is read, so the words
+  in front can be stale or misspelt and the link still lands. Older `?lat=&lon=` links
+  keep working, and "my location" still uses them, having no id to be named by.
 - **Stays fresh** — data older than 30 minutes is refreshed silently when you return
   to the tab.
 - **City search** — type at least 2 characters to search the Open-Meteo geocoding
@@ -58,7 +61,10 @@ npm test         # unit and component tests
 
 The build is a static bundle, so `dist/` can be dropped on Vercel, Netlify, GitHub
 Pages, Cloudflare Pages or any other static host. `vercel.json` already pins the
-build command and output directory.
+build command and output directory, and rewrites every path to `index.html` — city
+addresses like `/plovdiv-bulgaria-728193` are not files, so without that rule a
+refresh or a pasted link would 404. Any other host needs the same single-page
+fallback.
 
 ## Project layout
 

@@ -10,11 +10,14 @@ import { useWeather } from "./hooks/useWeather.js";
 import { useGeoName } from "./hooks/useGeoName.js";
 import { useFavorites } from "./hooks/useFavorites.js";
 import { groupFor } from "./weatherCodes.js";
-import { DEFAULT_PLACE, loadPlace, placeFromUrl, samePlace, savePlace, syncUrl } from "./place.js";
+import { fetchPlace } from "./api.js";
+import {
+  DEFAULT_PLACE, loadPlace, placeFromCity, placeFromUrl, samePlace, savePlace, syncUrl
+} from "./place.js";
 
 const RadarPanel = lazy(() => import("./components/RadarPanel.jsx"));
 
-const firstPlace = () => placeFromUrl(location.search) ?? loadPlace() ?? DEFAULT_PLACE;
+const firstPlace = () => placeFromUrl(location.pathname, location.search) ?? loadPlace() ?? DEFAULT_PLACE;
 
 export default function App() {
   const { dict, lang, unit } = useSettings(); // `lang` drives the city-name lookup
@@ -32,8 +35,27 @@ export default function App() {
   const name = place.labelKey ? dict[place.labelKey] : geoName;
 
   useEffect(() => { setSelectedDay(null); }, [place]);
-  useEffect(() => { savePlace(place); }, [place]);
+  useEffect(() => { if (place.lat != null) savePlace(place); }, [place]);
   useEffect(() => { syncUrl(place, name, lang, unit); }, [place, name, lang, unit]);
+
+  // A slug link carries the id and nothing else, so the coordinates are fetched before
+  // anything can be shown. An id that no longer resolves leaves the reader at home
+  // rather than on an empty page.
+  useEffect(() => {
+    if (place.lat != null) return;
+    let cancelled = false;
+    fetchPlace(place.geoId, lang)
+      .then(city => {
+        if (!cancelled) setPlace({ ...placeFromCity(city), geoId: city.id ?? place.geoId });
+      })
+      .catch(error => {
+        console.error(error);
+        if (cancelled) return;
+        setPlace(DEFAULT_PLACE);
+        setToast(dict.linkFailed);
+      });
+    return () => { cancelled = true; };
+  }, [place, lang, dict]);
 
   useEffect(() => {
     if (!data) return;

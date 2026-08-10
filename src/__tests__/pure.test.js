@@ -3,7 +3,7 @@ import { I18N, LANGS, pickLang } from "../i18n.js";
 import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
-import { placeFromUrl, samePlace } from "../place.js";
+import { pathFor, placeFromUrl, samePlace } from "../place.js";
 import { searchLangFor } from "../api.js";
 
 describe("translations", () => {
@@ -153,10 +153,35 @@ describe("city search", () => {
 });
 
 describe("places", () => {
-  it("reads a shared link", () => {
-    const place = placeFromUrl("?lat=42.15&lon=24.75&city=Plovdiv&id=728193&lang=bg&unit=f");
+  it("reads a city address", () => {
+    expect(placeFromUrl("/plovdiv-bulgaria-728193", "?lang=bg"))
+      .toMatchObject({ lat: null, lon: null, geoId: "728193", label: "plovdiv-bulgaria" });
+    expect(placeFromUrl("/", "?lang=bg")).toBeNull();
+  });
+
+  it("reads the id even when the words in front are wrong", () => {
+    expect(placeFromUrl("/пловдив-728193", "")).toMatchObject({ geoId: "728193" });
+    expect(placeFromUrl("/plovidv-mispelt-728193", "")).toMatchObject({ geoId: "728193" });
+    expect(placeFromUrl("/728193", "")).toMatchObject({ geoId: "728193", label: "" });
+  });
+
+  it("still reads an old query-string link", () => {
+    const place = placeFromUrl("/", "?lat=42.15&lon=24.75&city=Plovdiv&id=728193&lang=bg&unit=f");
     expect(place).toMatchObject({ lat: 42.15, lon: 24.75, label: "Plovdiv", geoId: "728193" });
-    expect(placeFromUrl("?lang=bg")).toBeNull();
+  });
+
+  it("writes a city address, transliterating and dropping punctuation", () => {
+    expect(pathFor({ geoId: "728193" }, "Plovdiv, Bulgaria")).toBe("/plovdiv-bulgaria-728193");
+    expect(pathFor({ geoId: "728193" }, "Пловдив, България")).toBe("/plovdiv-balgariya-728193");
+    expect(pathFor({ geoId: "2867714" }, "München, Germany")).toBe("/munchen-germany-2867714");
+    expect(pathFor({ geoId: "728193" }, "")).toBe("/728193"); // before the name arrives
+    expect(pathFor({ geoId: null, lat: 42.1, lon: 24.7 }, "My Location")).toBe("/");
+  });
+
+  it("comes back from its own address unchanged", () => {
+    const path = pathFor({ geoId: "728193" }, "Пловдив, България");
+    expect(placeFromUrl(path, "")).toMatchObject({ geoId: "728193" });
+    expect(pathFor(placeFromUrl(path, ""), null)).toBe(path);
   });
 
   it("matches places by id, then by proximity", () => {

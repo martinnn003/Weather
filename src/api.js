@@ -41,9 +41,15 @@ export async function searchCities(query, lang) {
   return results ?? [];
 }
 
-// Looks a known place up again to get its name in another language.
+// Looks a known place up by id — the same record a search returns, which is what
+// makes an id enough on its own: it carries the coordinates as well as the name.
+export async function fetchPlace(id, lang) {
+  return fetch(`https://geocoding-api.open-meteo.com/v1/get?id=${id}&language=${lang}`).then(json);
+}
+
+// The same lookup, when only the name in another language is wanted.
 export async function fetchPlaceName(id, lang) {
-  const place = await fetch(`https://geocoding-api.open-meteo.com/v1/get?id=${id}&language=${lang}`).then(json);
+  const place = await fetchPlace(id, lang);
   return [place.name, place.country].filter(Boolean).join(", ");
 }
 

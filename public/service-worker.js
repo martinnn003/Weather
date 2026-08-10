@@ -46,7 +46,8 @@ self.addEventListener("fetch", event => {
   // Map and radar tiles are large and always changing — leave them to the browser.
   if (url.origin !== self.location.origin) return;
 
-  // Shared links carry a query string (?lat=…) but must still resolve to the page.
+  // A shared link is a city address (/plovdiv-bulgaria-728193) or an older query
+  // string, and neither is a file in the cache — both must still resolve to the page.
   if (request.mode === "navigate") {
     event.respondWith(
       caches.match(request, { ignoreSearch: true })

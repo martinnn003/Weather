@@ -48,9 +48,10 @@ const fetchStub = vi.fn(url => {
   if (url.includes("/v1/forecast")) return respond(forecast);
   if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
   if (url.includes("/v1/get")) {
+    const place = { id: 728193, latitude: 42.15, longitude: 24.75 };
     return respond(url.includes("language=bg")
-      ? { name: "Пловдив", country: "България" }
-      : { name: "Plovdiv", country: "Bulgaria" });
+      ? { ...place, name: "Пловдив", country: "България" }
+      : { ...place, name: "Plovdiv", country: "Bulgaria" });
   }
   if (url.includes("/v1/search")) {
     return respond({ results: [{ id: 728193, name: "Plovdiv", country: "Bulgaria", admin1: "Plovdiv", latitude: 42.15, longitude: 24.75 }] });
@@ -232,26 +233,47 @@ describe("the app", () => {
     expect(screen.queryByRole("navigation", { name: "Запазени градове" })).toBeNull();
   });
 
-  it("leaves the address bare at home and fills it in once you travel", async () => {
+  it("leaves the address bare at home and gives a city one of its own", async () => {
     show();
     await screen.findByText("София, България");
     await waitFor(() => expect(location.search).toBe(""));
+    expect(location.pathname).toBe("/");
 
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
     fireEvent.click(await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 }));
     await screen.findByText("Пловдив, България");
 
-    await waitFor(() => expect(location.search).toContain("lat=42.15"));
-    expect(location.search).toContain("id=728193");
+    await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
     expect(location.search).toContain("lang=bg");
     expect(location.search).toContain("unit=c");
+    expect(location.search).not.toContain("lat="); // the id names the place on its own
 
     fireEvent.click(screen.getByRole("link", { name: "MeteoDita — начало" }));
     await screen.findByText("София, България");
-    await waitFor(() => expect(location.search).toBe("")); // and bare again on the way back
+    await waitFor(() => expect(location.pathname).toBe("/")); // and bare again on the way back
+    expect(location.search).toBe("");
   });
 
-  it("starts from a shared link", async () => {
+  it("starts from a city address, misspelt words and all", async () => {
+    history.replaceState(null, "", "/plovidv-bulgaria-728193?lang=bg&unit=f");
+    show();
+    expect(await screen.findByText("Пловдив, България")).toBeTruthy();
+    expect(screen.getByText("78°F")).toBeTruthy();
+    await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
+  });
+
+  it("sends a dead city address home with a word of explanation", async () => {
+    fetchStub.mockImplementation(url => (url.includes("/v1/get")
+      ? Promise.resolve({ ok: false, status: 404 })
+      : respond(forecast)));
+    history.replaceState(null, "", "/nowhere-999999999");
+    show();
+    expect(await screen.findByText(/Този град не беше намерен/)).toBeTruthy();
+    expect(await screen.findByText("София, България")).toBeTruthy();
+    await waitFor(() => expect(location.pathname).toBe("/"));
+  });
+
+  it("still starts from an old query-string link", async () => {
     history.replaceState(null, "", "/?lat=42.15&lon=24.75&city=Plovdiv&id=728193&lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
