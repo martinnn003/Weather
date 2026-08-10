@@ -44,7 +44,9 @@ const forecast = {
 
 const respond = body => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
 
-const fetchStub = vi.fn(url => {
+// A test that needs a different answer overrides this; `beforeEach` puts it back,
+// since clearing a mock forgets its calls but keeps whatever implementation it was given.
+const defaultFetch = url => {
   if (url.includes("/v1/forecast")) return respond(forecast);
   if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
   if (url.includes("/v1/get")) {
@@ -57,7 +59,9 @@ const fetchStub = vi.fn(url => {
     return respond({ results: [{ id: 728193, name: "Plovdiv", country: "Bulgaria", admin1: "Plovdiv", latitude: 42.15, longitude: 24.75 }] });
   }
   throw new Error(`unexpected request: ${url}`);
-});
+};
+
+const fetchStub = vi.fn(defaultFetch);
 
 const show = () => render(<SettingsProvider><App /></SettingsProvider>);
 
@@ -73,6 +77,7 @@ const stubGeolocation = () => {
 };
 
 beforeEach(() => {
+  fetchStub.mockImplementation(defaultFetch);
   vi.stubGlobal("fetch", fetchStub);
   localStorage.clear();
   history.replaceState(null, "", "/");
@@ -218,6 +223,55 @@ describe("the app", () => {
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "EN" }));
     expect(await screen.findByText("Plovdiv, Bulgaria")).toBeTruthy();
+  });
+
+  it("loads the typed city on Enter, without a trip through the list", async () => {
+    show();
+    await screen.findByText("София, България");
+
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "Plovdiv" } });
+    await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 });
+    fireEvent.keyDown(box, { key: "Enter" }); // no ArrowDown first
+
+    expect(await screen.findByText("Пловдив, България")).toBeTruthy();
+    expect(box.value).toBe("");
+  });
+
+  it("honours an Enter pressed before the results have arrived", async () => {
+    show();
+    await screen.findByText("София, България");
+
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "Plovdiv" } });
+    fireEvent.keyDown(box, { key: "Enter" }); // the search is still 300 ms away
+
+    expect(await screen.findByText("Пловдив, България", undefined, { timeout: 2000 })).toBeTruthy();
+  });
+
+  it("takes the city that was typed over the better-ranked one above it", async () => {
+    fetchStub.mockImplementation(url => {
+      if (url.includes("/v1/search")) {
+        return respond({ results: [
+          { id: 111, name: "Plovdivci", country: "Bulgaria", latitude: 41.9, longitude: 26.1 },
+          { id: 728193, name: "Plovdiv", country: "Bulgaria", latitude: 42.15, longitude: 24.75 }
+        ] });
+      }
+      if (url.includes("/v1/get")) {
+        return respond({ id: 728193, latitude: 42.15, longitude: 24.75, name: "Пловдив", country: "България" });
+      }
+      if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
+      return respond(forecast);
+    });
+    show();
+    await screen.findByText("София, България");
+
+    const box = screen.getByRole("combobox");
+    fireEvent.change(box, { target: { value: "Plovdiv" } });
+    await screen.findByRole("option", { name: /Plovdivci/ }, { timeout: 2000 });
+    fireEvent.keyDown(box, { key: "Enter" });
+
+    await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
   });
 
   it("saves a city to the chip bar and keeps the link shareable", async () => {

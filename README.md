@@ -35,7 +35,9 @@ when the radar is opened.
 - **Stays fresh** — data older than 30 minutes is refreshed silently when you return
   to the tab.
 - **City search** — type at least 2 characters to search the Open-Meteo geocoding
-  API. Results are debounced by 300 ms and navigable with ↑/↓/Enter/Escape.
+  API. Results are debounced by 300 ms and navigable with ↑/↓/Enter/Escape. Enter
+  alone loads the city you typed without a detour through the list, and waits for
+  the results if it was pressed before they arrived.
 - **Geolocation** — the 📍 button loads the forecast for your current position.
 - **°C / °F toggle** — data is fetched in metric and converted on display; wind
   switches between km/h and mph. The choice is remembered.

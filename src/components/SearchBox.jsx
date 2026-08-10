@@ -3,12 +3,21 @@ import { searchCities } from "../api.js";
 import { useSettings } from "../settings.jsx";
 import { placeFromCity } from "../place.js";
 
+// Enter without a highlighted row takes the city that was actually typed, when one of
+// the results carries that name, and the best-ranked one otherwise. Open-Meteo sorts by
+// significance, so "Plovdiv" would otherwise be beaten by a bigger place named after it.
+const bestMatch = (found, query) => {
+  const typed = query.trim().toLowerCase();
+  return found.find(city => city.name.toLowerCase() === typed) ?? found[0];
+};
+
 export default function SearchBox({ onPick }) {
   const { dict, lang } = useSettings();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState(null); // null = closed, [] = "nothing found"
   const [failed, setFailed] = useState(false);
   const [active, setActive] = useState(-1);
+  const [submitted, setSubmitted] = useState(false); // Enter, pressed before the list arrived
   const boxRef = useRef(null);
 
   useEffect(() => {
@@ -47,11 +56,26 @@ export default function SearchBox({ onPick }) {
   const pick = city => {
     setQuery("");
     setResults(null);
+    setSubmitted(false);
     onPick(placeFromCity(city));
   };
 
+  // A search runs 300 ms after the last keystroke, so Enter often lands before the list
+  // does. Rather than ignore it, the press waits here for the results it asked for.
+  useEffect(() => {
+    if (!submitted || results === null) return;
+    setSubmitted(false);
+    if (results.length) pick(bestMatch(results, query));
+  }, [submitted, results]);
+
   const onKeyDown = e => {
     if (e.key === "Escape") return setResults(null);
+    if (e.key === "Enter") {
+      e.preventDefault();
+      if (results?.length) pick(active >= 0 ? results[active] : bestMatch(results, query));
+      else if (results === null && query.trim().length >= 2) setSubmitted(true);
+      return;
+    }
     if (!results?.length) return;
     if (e.key === "ArrowDown") {
       e.preventDefault();
@@ -59,9 +83,6 @@ export default function SearchBox({ onPick }) {
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActive(i => (i - 1 + results.length) % results.length);
-    } else if (e.key === "Enter" && active >= 0) {
-      e.preventDefault();
-      pick(results[active]);
     }
   };
 
@@ -72,13 +93,14 @@ export default function SearchBox({ onPick }) {
       <input
         type="text"
         value={query}
-        onChange={e => setQuery(e.target.value)}
+        onChange={e => { setQuery(e.target.value); setSubmitted(false); }}
         onKeyDown={onKeyDown}
         placeholder={dict.searchPlaceholder}
         autoComplete="off"
         role="combobox"
         aria-expanded={open}
         aria-controls="search-results"
+        aria-activedescendant={results?.[active] ? `city-${results[active].id}` : undefined}
         aria-autocomplete="list"
         aria-label={dict.searchLabel}
         className="w-full rounded-xl border border-white/35 bg-white/15 px-4 py-2.5
@@ -101,6 +123,7 @@ export default function SearchBox({ onPick }) {
           {results.map((city, i) => (
             <li
               key={city.id}
+              id={`city-${city.id}`}
               role="option"
               aria-selected={i === active}
               onClick={() => pick(city)}
