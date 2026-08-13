@@ -249,16 +249,21 @@ describe("the app", () => {
     expect(await screen.findByText("Пловдив, България", undefined, { timeout: 2000 })).toBeTruthy();
   });
 
-  it("takes the city that was typed over the better-ranked one above it", async () => {
+  // Names come back in the language that was searched, so "Varna" typed under a Bulgarian
+  // interface matches nothing at the top — the only result spelt that way is the Russian
+  // village, which has no Bulgarian name. Enter takes the row on screen, not the spelling.
+  it("takes the top result on Enter, not the one spelt like the query", async () => {
     fetchStub.mockImplementation(url => {
       if (url.includes("/v1/search")) {
         return respond({ results: [
-          { id: 111, name: "Plovdivci", country: "Bulgaria", latitude: 41.9, longitude: 26.1 },
-          { id: 728193, name: "Plovdiv", country: "Bulgaria", latitude: 42.15, longitude: 24.75 }
+          { id: 726050, name: "Варна", country: "България", latitude: 43.21, longitude: 27.91 },
+          { id: 1487764, name: "Varna", country: "Русия", latitude: 53.38, longitude: 60.98 }
         ] });
       }
       if (url.includes("/v1/get")) {
-        return respond({ id: 728193, latitude: 42.15, longitude: 24.75, name: "Пловдив", country: "България" });
+        return respond(url.includes("id=726050")
+          ? { id: 726050, latitude: 43.21, longitude: 27.91, name: "Варна", country: "България" }
+          : { id: 1487764, latitude: 53.38, longitude: 60.98, name: "Варна", country: "Русия" });
       }
       if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
       return respond(forecast);
@@ -267,11 +272,12 @@ describe("the app", () => {
     await screen.findByText("София, България");
 
     const box = screen.getByRole("combobox");
-    fireEvent.change(box, { target: { value: "Plovdiv" } });
-    await screen.findByRole("option", { name: /Plovdivci/ }, { timeout: 2000 });
+    fireEvent.change(box, { target: { value: "Varna" } });
+    await screen.findByRole("option", { name: /Русия/ }, { timeout: 2000 });
     fireEvent.keyDown(box, { key: "Enter" });
 
-    await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
+    expect(await screen.findByText("Варна, България")).toBeTruthy();
+    await waitFor(() => expect(location.pathname).toBe("/varna-balgariya-726050"));
   });
 
   it("saves a city to the chip bar and keeps the link shareable", async () => {

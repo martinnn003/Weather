@@ -3,14 +3,6 @@ import { searchCities } from "../api.js";
 import { useSettings } from "../settings.jsx";
 import { placeFromCity } from "../place.js";
 
-// Enter without a highlighted row takes the city that was actually typed, when one of
-// the results carries that name, and the best-ranked one otherwise. Open-Meteo sorts by
-// significance, so "Plovdiv" would otherwise be beaten by a bigger place named after it.
-const bestMatch = (found, query) => {
-  const typed = query.trim().toLowerCase();
-  return found.find(city => city.name.toLowerCase() === typed) ?? found[0];
-};
-
 export default function SearchBox({ onPick }) {
   const { dict, lang } = useSettings();
   const [query, setQuery] = useState("");
@@ -65,14 +57,17 @@ export default function SearchBox({ onPick }) {
   useEffect(() => {
     if (!submitted || results === null) return;
     setSubmitted(false);
-    if (results.length) pick(bestMatch(results, query));
+    if (results.length) pick(results[0]);
   }, [submitted, results]);
 
   const onKeyDown = e => {
     if (e.key === "Escape") return setResults(null);
     if (e.key === "Enter") {
       e.preventDefault();
-      if (results?.length) pick(active >= 0 ? results[active] : bestMatch(results, query));
+      // Nothing highlighted means the top row — the one already on screen. Open-Meteo
+      // ranks by significance, and second-guessing that here would only make Enter
+      // load a city other than the one being looked at.
+      if (results?.length) pick(active >= 0 ? results[active] : results[0]);
       else if (results === null && query.trim().length >= 2) setSubmitted(true);
       return;
     }
