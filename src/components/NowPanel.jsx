@@ -59,37 +59,44 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
     : fmt.temp(current.temperature_2m);
 
   return (
-    <section className="panel enter text-center lg:sticky lg:top-24">
-      <div className="flex items-center justify-center gap-2.5">
-        <h1 className="text-[1.7rem] font-bold">{name}</h1>
-        <div className="flex gap-1.5">
-          <button
-            type="button"
-            className="icon-btn icon-btn-sm"
-            aria-pressed={saved}
-            title={saved ? dict.favRemove : dict.favAdd}
-            aria-label={saved ? dict.favRemove : dict.favAdd}
-            onClick={onToggleSave}
-          >
-            {saved ? "★" : "☆"}
-          </button>
-          <button type="button" className="icon-btn icon-btn-sm" title={dict.shareLabel}
-            aria-label={dict.shareLabel} onClick={onShare}>🔗</button>
-        </div>
-      </div>
-
-      <p className="mt-1 text-sm opacity-80">{subtitle}</p>
-      <div className="mt-5 text-6xl leading-none font-light sm:text-7xl">{headline}{fmt.unitLetter}</div>
-      <div className="mt-1.5 opacity-90">{icon} {label ?? dict.unknown}</div>
-
-      <div className="tiles">
-        {tilesFor(data, aqi, day, dict, fmt).map(([tileIcon, tileLabel, value]) => (
-          <div key={tileLabel} className="tile">
-            <div className="text-lg">{tileIcon}</div>
-            <div className="mt-0.5 font-bold">{value}</div>
-            <div className="mt-0.5 text-[0.7rem] opacity-75">{tileLabel}</div>
+    <section className="panel enter">
+      {/* Wide enough for a row, the reading and the tiles sit side by side; stacked and
+          centred below that, where a row would squeeze both halves. */}
+      <div className="flex flex-col items-center gap-6 text-center
+        lg:flex-row lg:items-center lg:gap-10 lg:text-left">
+        <div className="lg:w-[280px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
+          <div className="flex items-center justify-center gap-2.5 lg:justify-start">
+            <h1 className="text-[1.7rem] font-bold">{name}</h1>
+            <div className="flex gap-1.5">
+              <button
+                type="button"
+                className="icon-btn icon-btn-sm"
+                aria-pressed={saved}
+                title={saved ? dict.favRemove : dict.favAdd}
+                aria-label={saved ? dict.favRemove : dict.favAdd}
+                onClick={onToggleSave}
+              >
+                {saved ? "★" : "☆"}
+              </button>
+              <button type="button" className="icon-btn icon-btn-sm" title={dict.shareLabel}
+                aria-label={dict.shareLabel} onClick={onShare}>🔗</button>
+            </div>
           </div>
-        ))}
+
+          <p className="mt-1 text-sm opacity-80">{subtitle}</p>
+          <div className="mt-4 text-6xl leading-none font-light sm:text-7xl">{headline}{fmt.unitLetter}</div>
+          <div className="mt-1.5 opacity-90">{icon} {label ?? dict.unknown}</div>
+        </div>
+
+        <div className="tiles w-full min-w-0 lg:flex-1 lg:grid-cols-5">
+          {tilesFor(data, aqi, day, dict, fmt).map(([tileIcon, tileLabel, value]) => (
+            <div key={tileLabel} className="tile">
+              <div className="text-lg">{tileIcon}</div>
+              <div className="mt-0.5 font-bold">{value}</div>
+              <div className="mt-0.5 text-[0.7rem] opacity-75">{tileLabel}</div>
+            </div>
+          ))}
+        </div>
       </div>
     </section>
   );

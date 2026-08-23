@@ -28,7 +28,7 @@ export default function FavoritesBar({ favorites, current, onGo, onRemove }) {
   if (!favorites.length) return null;
 
   return (
-    <nav aria-label={dict.favLabel} className="flex flex-wrap gap-2 lg:col-span-2">
+    <nav aria-label={dict.favLabel} className="flex flex-wrap gap-2">
       {favorites.map((place, i) => (
         <Chip
           key={place.geoId ?? `${place.lat},${place.lon}`}

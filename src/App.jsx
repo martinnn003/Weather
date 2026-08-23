@@ -119,13 +119,14 @@ export default function App() {
         onToggleRadar={() => setRadarOpen(open => !open)}
       />
 
-      <main className="mx-auto grid w-full max-w-[1150px] flex-1 content-start gap-6 px-4 py-5
-        sm:px-6 sm:py-8 lg:grid-cols-[360px_1fr] lg:items-start">
+      {/* One stacked column: every panel gets the full width, so the ten days read as a
+          single row and the hourly strip has room to scroll inside its own panel
+          instead of pushing the page sideways. */}
+      <main className="mx-auto flex w-full max-w-[1150px] min-w-0 flex-1 flex-col gap-6
+        px-4 py-5 sm:px-6 sm:py-8">
         <FavoritesBar favorites={favorites} current={place} onGo={setPlace} onRemove={remove} />
 
-        {message && (
-          <p role="alert" className="text-center text-red-100 lg:col-span-2">{message}</p>
-        )}
+        {message && <p role="alert" className="text-center text-red-100">{message}</p>}
 
         {!data && loading && <Skeleton />}
 
@@ -140,19 +141,17 @@ export default function App() {
               onToggleSave={() => toggle(place)}
               onShare={share}
             />
-            <div className="flex flex-col gap-6">
-              <Forecast
-                data={data}
-                selectedDay={selectedDay}
-                onSelect={day => setSelectedDay(current => (current === day ? null : day))}
-              />
-              {selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
-              {radarOpen && (
-                <Suspense fallback={<section className="panel opacity-80">{dict.radarLoading}</section>}>
-                  <RadarPanel lat={place.lat} lon={place.lon} />
-                </Suspense>
-              )}
-            </div>
+            <Forecast
+              data={data}
+              selectedDay={selectedDay}
+              onSelect={day => setSelectedDay(current => (current === day ? null : day))}
+            />
+            {selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
+            {radarOpen && (
+              <Suspense fallback={<section className="panel opacity-80">{dict.radarLoading}</section>}>
+                <RadarPanel lat={place.lat} lon={place.lon} />
+              </Suspense>
+            )}
           </>
         )}
       </main>
