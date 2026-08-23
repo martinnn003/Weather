@@ -1,26 +1,27 @@
-// Geometry of the hourly strip. These two must match `.hour`'s width and the gap
-// between cells in index.css, or the curve drifts away from the cells under it.
+// Geometry of the hourly strip. HourlyStrip lays the cells out with these same two
+// numbers, or the curve drifts away from the cells under it.
 export const HOUR_W = 62;
 export const HOUR_GAP = 8;
 export const SPARK_H = 54;
 
-// The 240 hourly readings, narrowed to one day. For today, hours already past are
-// dropped so the strip opens on the current hour instead of at midnight.
+// The 240 hourly readings, narrowed to one day. Today keeps its hours that have already
+// passed, marked `past`: dropping them left a near-empty panel late in the evening and
+// took the day's curve with it. The strip scrolls itself to the current hour instead.
 export function hoursForDay(data, dayIndex) {
   const { hourly, daily, current } = data;
   const date = daily.time[dayIndex];
-  const from = dayIndex === 0 ? current.time.slice(0, 13) : "";
+  const now = current.time.slice(0, 13);
   const rows = [];
   hourly.time.forEach((time, i) => {
-    if (time.startsWith(date) && time.slice(0, 13) >= from) {
-      rows.push({
-        time,
-        temp: hourly.temperature_2m[i],
-        code: hourly.weather_code[i],
-        isDay: hourly.is_day[i] === 1,
-        rain: hourly.precipitation_probability[i]
-      });
-    }
+    if (!time.startsWith(date)) return;
+    rows.push({
+      time,
+      temp: hourly.temperature_2m[i],
+      code: hourly.weather_code[i],
+      isDay: hourly.is_day[i] === 1,
+      rain: hourly.precipitation_probability[i],
+      past: time.slice(0, 13) < now
+    });
   });
   return rows;
 }

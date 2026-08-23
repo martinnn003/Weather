@@ -111,16 +111,20 @@ const sampleData = {
 };
 
 describe("hourly strip", () => {
-  it("drops the hours that already passed today", () => {
+  it("keeps today whole and marks the hours that already passed", () => {
     const hours = hoursForDay(sampleData, 0);
-    expect(hours).toHaveLength(6); // 18:00 … 23:00
-    expect(hours[0].time).toBe("2026-07-26T18:00");
+    expect(hours).toHaveLength(24);
+    expect(hours[0].time).toBe("2026-07-26T00:00");
+    expect(hours.findIndex(hour => !hour.past)).toBe(18); // now is 18:30
+    expect(hours[17].past).toBe(true);
+    expect(hours[23].past).toBe(false);
   });
 
-  it("keeps a full day for any other day", () => {
+  it("keeps a full day for any other day, none of it past", () => {
     const hours = hoursForDay(sampleData, 1);
     expect(hours).toHaveLength(24);
     expect(hours[0].time).toBe("2026-07-27T00:00");
+    expect(hours.some(hour => hour.past)).toBe(false);
   });
 
   it("sizes the curve to the cells beneath it", () => {

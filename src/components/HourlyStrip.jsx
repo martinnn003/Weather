@@ -1,3 +1,4 @@
+import { useEffect, useRef } from "react";
 import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
@@ -28,11 +29,22 @@ function Sparkline({ values }) {
 
 export default function HourlyStrip({ data, dayIndex }) {
   const { dict, lang, fmt } = useSettings();
+  const scroller = useRef(null);
   const hours = hoursForDay(data, dayIndex);
+  const nowIndex = hours.findIndex(hour => !hour.past);
+
+  // Today opens on the current hour rather than at midnight. Setting scrollLeft keeps the
+  // move inside this panel; scrollIntoView would drag the page along with it.
+  useEffect(() => {
+    if (scroller.current && nowIndex > 0) {
+      scroller.current.scrollLeft = nowIndex * (HOUR_W + HOUR_GAP);
+    }
+  }, [dayIndex, nowIndex]);
+
   if (!hours.length) return null;
 
   return (
-    <section aria-label={dict.hourlyLabel} className="panel enter overflow-x-auto">
+    <section ref={scroller} aria-label={dict.hourlyLabel} className="panel enter overflow-x-auto">
       <div className="flex w-max flex-col">
         {/* The curve is decorative: every value is labelled in its cell below. */}
         <Sparkline values={hours.map(hour => fmt.conv(hour.temp))} />
@@ -46,7 +58,8 @@ export default function HourlyStrip({ data, dayIndex }) {
                 key={hour.time}
                 title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${hour.rain}%`}
                 style={{ flex: `0 0 ${HOUR_W}px` }}
-                className="rounded-lg bg-white/10 px-1 py-2.5 text-center transition-colors hover:bg-white/20"
+                className={`rounded-lg bg-white/10 px-1 py-2.5 text-center transition-colors
+                  hover:bg-white/20 ${hour.past ? "opacity-45" : ""}`}
               >
                 <div className="text-xs opacity-75">{time}</div>
                 <div className="my-1.5 text-xl">{icon}</div>

@@ -130,13 +130,15 @@ describe("the app", () => {
     expect(screen.getByText("24 km")).toBeTruthy();
   });
 
-  it("opens the hourly strip from the current hour for today", async () => {
+  it("keeps today's strip whole and fades the hours already gone", async () => {
     show();
     await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: /^Днес/ }));
     const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
-    expect(within(strip).getByText("18:00")).toBeTruthy();
-    expect(within(strip).queryByText("00:00")).toBeNull();
+    const cellFor = time => within(strip).getByText(time).closest("div[title]");
+    expect(cellFor("00:00").className).toContain("opacity-45"); // now is 18:30
+    expect(cellFor("18:00").className).not.toContain("opacity-45");
+    expect(cellFor("23:00")).toBeTruthy();
     expect(strip.querySelector("svg path")).toBeTruthy(); // the temperature curve
   });
 
