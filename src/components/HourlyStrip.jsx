@@ -33,12 +33,13 @@ export default function HourlyStrip({ data, dayIndex }) {
   const hours = hoursForDay(data, dayIndex);
   const nowIndex = hours.findIndex(hour => !hour.past);
 
-  // Today opens on the current hour rather than at midnight. Setting scrollLeft keeps the
-  // move inside this panel; scrollIntoView would drag the page along with it.
+  // Today opens on the current hour rather than at midnight; every other day opens at its
+  // start. Switching days reuses this same node, so the position is always written -- left
+  // alone, it would keep the offset the day before it scrolled to. Setting scrollLeft keeps
+  // the move inside this panel; scrollIntoView would drag the page along with it.
   useEffect(() => {
-    if (scroller.current && nowIndex > 0) {
-      scroller.current.scrollLeft = nowIndex * (HOUR_W + HOUR_GAP);
-    }
+    if (!scroller.current) return;
+    scroller.current.scrollLeft = nowIndex > 0 ? nowIndex * (HOUR_W + HOUR_GAP) : 0;
   }, [dayIndex, nowIndex]);
 
   if (!hours.length) return null;

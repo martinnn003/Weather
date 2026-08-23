@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
+import { HOUR_W, HOUR_GAP } from "../hours.js";
 
 // A ten-day forecast shaped exactly like Open-Meteo's, generated instead of stored
 // so the fixture stays readable. The run starts on 26 July and rolls over into
@@ -140,6 +141,19 @@ describe("the app", () => {
     expect(cellFor("18:00").className).not.toContain("opacity-45");
     expect(cellFor("23:00")).toBeTruthy();
     expect(strip.querySelector("svg path")).toBeTruthy(); // the temperature curve
+  });
+
+  it("re-aims the strip at the new day instead of keeping the last scroll", async () => {
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Днес/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    expect(strip.scrollLeft).toBe(18 * (HOUR_W + HOUR_GAP)); // now is 18:30
+
+    // The same node is reused across days, so tomorrow must be aimed back at midnight.
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    await screen.findByText("понеделник, 27 юли");
+    expect(screen.getByRole("region", { name: "Почасова прогноза" }).scrollLeft).toBe(0);
   });
 
   it("turns the panel into a day summary when a future day is picked", async () => {
