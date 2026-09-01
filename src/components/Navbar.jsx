@@ -32,45 +32,49 @@ export default function Navbar({ onPick, onLocate, onHome, radarOpen, onToggleRa
   };
 
   return (
-    <header className="sticky top-0 z-20 flex flex-wrap items-center gap-3 border-b border-white/20
-      bg-white/10 px-4 py-3 backdrop-blur-md sm:gap-4 sm:px-7">
-      <a
-        href="./"
-        onClick={home}
-        aria-label={dict.homeLabel}
-        className="mr-auto rounded-lg text-lg font-bold whitespace-nowrap transition
-          hover:opacity-75 focus-visible:outline focus-visible:outline-2
-          focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:mr-0"
-      >
-        {dict.brand}
-      </a>
+    <header className="sticky top-0 z-20 border-b border-white/20 bg-white/10 backdrop-blur-md">
+      {/* Matches main's width and padding exactly, so the brand lines up with the left
+          edge of the panels instead of running out to the window. */}
+      <div className="mx-auto flex w-full max-w-[1400px] flex-wrap items-center gap-3
+        px-4 py-3 sm:gap-4 sm:px-6">
+        <a
+          href="./"
+          onClick={home}
+          aria-label={dict.homeLabel}
+          className="mr-auto rounded-lg text-lg font-bold whitespace-nowrap transition
+            hover:opacity-75 focus-visible:outline focus-visible:outline-2
+            focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:mr-0"
+        >
+          {dict.brand}
+        </a>
 
-      <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
-        <SearchBox onPick={onPick} />
-      </div>
+        <div className="order-3 w-full sm:order-none sm:w-auto sm:flex-1">
+          <SearchBox onPick={onPick} />
+        </div>
 
-      <div className="flex items-center gap-1.5 sm:gap-2.5">
-        <button type="button" className="icon-btn" title={dict.geoLabel}
-          aria-label={dict.geoLabel} onClick={onLocate}>📍</button>
-        <button type="button" className="icon-btn" title={dict.radarLabel}
-          aria-label={dict.radarLabel} aria-pressed={radarOpen} onClick={onToggleRadar}>🛰️</button>
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
+          <button type="button" className="icon-btn" title={dict.geoLabel}
+            aria-label={dict.geoLabel} onClick={onLocate}>📍</button>
+          <button type="button" className="icon-btn" title={dict.radarLabel}
+            aria-label={dict.radarLabel} aria-pressed={radarOpen} onClick={onToggleRadar}>🛰️</button>
 
-        <SegToggle
-          label={dict.unitLabel}
-          value={unit}
-          onChange={setUnit}
-          options={[{ value: "c", text: "°C" }, { value: "f", text: "°F" }]}
-        />
-        <SegToggle
-          label={dict.langLabel}
-          value={lang}
-          onChange={setLang}
-          options={[...LANGS].sort().map(code => ({ // БГ first, then EN
-            value: code,
-            lang: code,
-            text: code === "bg" ? "БГ" : "EN"
-          }))}
-        />
+          <SegToggle
+            label={dict.unitLabel}
+            value={unit}
+            onChange={setUnit}
+            options={[{ value: "c", text: "°C" }, { value: "f", text: "°F" }]}
+          />
+          <SegToggle
+            label={dict.langLabel}
+            value={lang}
+            onChange={setLang}
+            options={[...LANGS].sort().map(code => ({ // БГ first, then EN
+              value: code,
+              lang: code,
+              text: code === "bg" ? "БГ" : "EN"
+            }))}
+          />
+        </div>
       </div>
     </header>
   );

@@ -53,7 +53,7 @@ export default function RadarPanel({ lat, lon }) {
   return (
     <section aria-label={dict.radarLabel} className="panel enter">
       <div className="mb-3 text-sm opacity-80">{caption}</div>
-      <div ref={boxRef} className="radar-map h-[260px] overflow-hidden rounded-2xl sm:h-[340px]" />
+      <div ref={boxRef} className="radar-map h-[260px] overflow-hidden rounded-2xl sm:h-[340px] xl:h-[400px]" />
     </section>
   );
 }

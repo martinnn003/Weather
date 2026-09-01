@@ -122,7 +122,7 @@ export default function App() {
       {/* One stacked column: every panel gets the full width, so the ten days read as a
           single row and the hourly strip has room to scroll inside its own panel
           instead of pushing the page sideways. */}
-      <main className="mx-auto flex w-full max-w-[1150px] min-w-0 flex-1 flex-col gap-6
+      <main className="mx-auto flex w-full max-w-[1400px] min-w-0 flex-1 flex-col gap-6
         px-4 py-5 sm:px-6 sm:py-8">
         <FavoritesBar favorites={favorites} current={place} onGo={setPlace} onRemove={remove} />
 

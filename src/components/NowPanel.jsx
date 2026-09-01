@@ -67,7 +67,7 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
           centred below that, where a row would squeeze both halves. */}
       <div className="flex flex-col items-center gap-6 text-center
         lg:flex-row lg:items-center lg:gap-10 lg:text-left">
-        <div className="lg:w-[360px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
+        <div className="lg:w-[360px] xl:w-[400px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
           {/* The buttons act on the city, so they stay on its row, pinned to the right
               edge of the column — the same place whatever the language, rather than
               trailing a subtitle whose length decides whether they fit. The name takes
