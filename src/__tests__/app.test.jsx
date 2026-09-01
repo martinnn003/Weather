@@ -149,13 +149,15 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: /^Днес/ }));
+    // The panel is the labelled region; the row inside it is what scrolls.
     const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
-    expect(strip.scrollLeft).toBe(18 * (HOUR_W + HOUR_GAP)); // now is 18:30
+    expect(strip.querySelector(".scroll-x").scrollLeft).toBe(18 * (HOUR_W + HOUR_GAP)); // now is 18:30
 
     // The same node is reused across days, so tomorrow must be aimed back at midnight.
     fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
     await screen.findByText("понеделник, 27 юли");
-    expect(screen.getByRole("region", { name: "Почасова прогноза" }).scrollLeft).toBe(0);
+    expect(screen.getByRole("region", { name: "Почасова прогноза" })
+      .querySelector(".scroll-x").scrollLeft).toBe(0);
   });
 
   it("turns the panel into a day summary when a future day is picked", async () => {

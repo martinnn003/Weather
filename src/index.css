@@ -53,6 +53,23 @@
   .tiles { @apply flex flex-wrap gap-2.5; }
   .tiles > * { @apply grow basis-[88px]; }
 
+  /* A panel is its own scroll container no longer: the browser draws the bar along the
+     bottom of whatever scrolls, and on the panel that meant a grey line across its
+     rounded edge. Scrolling a child keeps the bar inside the panel's padding, and the
+     rules below dress it to match the glass rather than the desktop. */
+  .scroll-x {
+    @apply overflow-x-auto pb-2;
+    scrollbar-width: thin;
+    scrollbar-color: rgb(255 255 255 / 0.35) transparent;
+  }
+  .scroll-x::-webkit-scrollbar { height: 8px; }
+  .scroll-x::-webkit-scrollbar-track { background: transparent; }
+  .scroll-x::-webkit-scrollbar-thumb {
+    background: rgb(255 255 255 / 0.3);
+    border-radius: 999px;
+  }
+  .scroll-x::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.45); }
+
   .skeleton-block {
     @apply rounded-xl bg-white/15;
     animation: shimmer 1.5s ease-in-out infinite;
