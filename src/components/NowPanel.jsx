@@ -7,11 +7,14 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
   const { current, daily, hourly } = data;
 
   if (dayIndex > 0) {
+    const gusts = daily.wind_gusts_10m_max?.[dayIndex];
+    const windFrom = daily.wind_direction_10m_dominant?.[dayIndex];
     return [
       ["⬆️", dict.high, fmt.temp(daily.temperature_2m_max[dayIndex])],
       ["⬇️", dict.low, fmt.temp(daily.temperature_2m_min[dayIndex])],
       ["🌡️", dict.feelsLike, fmt.temp(daily.apparent_temperature_max[dayIndex])],
-      ["💨", dict.wind, fmt.wind(daily.wind_speed_10m_max[dayIndex])],
+      ["💨", windFrom == null ? dict.wind : fmt.windLabel(windFrom), fmt.wind(daily.wind_speed_10m_max[dayIndex])],
+      ...(gusts == null ? [] : [["🌪️", dict.gusts, fmt.wind(gusts)]]),
       ["😎", dict.uv, Math.round(daily.uv_index_max[dayIndex] ?? 0)],
       ["🌧️", dict.precip, `${daily.precipitation_probability_max[dayIndex] ?? 0}%`],
       ["☔", dict.precipTotal, fmt.rain(daily.precipitation_sum[dayIndex] ?? 0)],
@@ -92,7 +95,7 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
           <div className="mt-1.5 opacity-90">{icon} {label ?? dict.unknown}</div>
         </div>
 
-        <div className="tiles w-full min-w-0 lg:flex-1 lg:grid-cols-5">
+        <div className="tiles w-full min-w-0 lg:flex-1 lg:[&>*]:basis-[calc((100%-2.5rem)/5)]">
           {tilesFor(data, aqi, day, dict, fmt).map(([tileIcon, tileLabel, value]) => (
             <div key={tileLabel} className="tile">
               <div className="text-lg">{tileIcon}</div>

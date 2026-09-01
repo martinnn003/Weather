@@ -3,7 +3,8 @@ const FORECAST =
   "&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature," +
   "wind_speed_10m,wind_direction_10m,surface_pressure,precipitation,is_day" +
   "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max," +
-  "wind_speed_10m_max,sunrise,sunset,uv_index_max,precipitation_probability_max,precipitation_sum" +
+  "wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset," +
+  "uv_index_max,precipitation_probability_max,precipitation_sum" +
   "&hourly=temperature_2m,weather_code,precipitation_probability,visibility,is_day" +
   "&timezone=auto&forecast_days=10";
 

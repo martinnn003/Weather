@@ -12,7 +12,7 @@ export default function Skeleton() {
             <div className="skeleton-block mx-auto mt-5 h-18 w-1/2 lg:mx-0" />
             <div className="skeleton-block mx-auto mt-2.5 h-4 w-2/5 lg:mx-0" />
           </div>
-          <div className="tiles w-full min-w-0 lg:flex-1 lg:grid-cols-5">
+          <div className="tiles w-full min-w-0 lg:flex-1 lg:[&>*]:basis-[calc((100%-2.5rem)/5)]">
             {Array.from({ length: 10 }, (_, i) => (
               <div key={i} className="skeleton-block h-[74px]" />
             ))}
