@@ -1,8 +1,11 @@
 // Geometry of the hourly strip. HourlyStrip lays the cells out with these same two
 // numbers, or the curve drifts away from the cells under it.
-export const HOUR_W = 62;
+export const HOUR_W = 84;
 export const HOUR_GAP = 8;
-export const SPARK_H = 54;
+// The curve's usable band is `height - 24`, and its slopes read the same only while that
+// band keeps pace with the horizontal scale. Widening a cell from 62 to 84 stretches an
+// hour by a factor of 92/70, so the band goes from 30 to 40 and the height with it.
+export const SPARK_H = 64;
 
 // The 240 hourly readings, narrowed to one day. Today keeps its hours that have already
 // passed, marked `past`: dropping them left a near-empty panel late in the evening and

@@ -70,6 +70,12 @@
   }
   .scroll-x::-webkit-scrollbar-thumb:hover { background: rgb(255 255 255 / 0.45); }
 
+  .strip-arrow {
+    @apply grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30
+      bg-white/25 pb-0.5 text-2xl leading-none backdrop-blur-md transition-colors
+      hover:bg-white/40 disabled:cursor-default;
+  }
+
   .skeleton-block {
     @apply rounded-xl bg-white/15;
     animation: shimmer 1.5s ease-in-out infinite;
@@ -79,6 +85,13 @@
 
 @keyframes shimmer { 0%, 100% { opacity: 0.45; } 50% { opacity: 0.85; } }
 @keyframes enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* From sm up the strip carries arrows, which say the same thing the bar did and say it
+   more legibly; below that there are none, so the bar stays as the only sign of travel. */
+@media (min-width: 40rem) {
+  .scroll-x { scrollbar-width: none; }
+  .scroll-x::-webkit-scrollbar { height: 0; }
+}
 
 /* Leaflet paints its own surface; match the panel instead of its default grey. */
 .radar-map .leaflet-container {
