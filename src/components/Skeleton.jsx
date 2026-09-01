@@ -7,7 +7,7 @@ export default function Skeleton() {
     <>
       <section className="panel" role="status" aria-label={dict.loadingLabel}>
         <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-center lg:gap-10">
-          <div className="w-full lg:w-[280px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
+          <div className="w-full lg:w-[360px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
             <div className="skeleton-block mx-auto h-7 w-3/5 lg:mx-0" />
             <div className="skeleton-block mx-auto mt-5 h-18 w-1/2 lg:mx-0" />
             <div className="skeleton-block mx-auto mt-2.5 h-4 w-2/5 lg:mx-0" />

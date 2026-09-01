@@ -64,10 +64,14 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
           centred below that, where a row would squeeze both halves. */}
       <div className="flex flex-col items-center gap-6 text-center
         lg:flex-row lg:items-center lg:gap-10 lg:text-left">
-        <div className="lg:w-[280px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
-          <div className="flex items-center justify-center gap-2.5 lg:justify-start">
-            <h1 className="text-[1.7rem] font-bold">{name}</h1>
-            <div className="flex gap-1.5">
+        <div className="lg:w-[360px] lg:shrink-0 lg:border-r lg:border-white/15 lg:pr-10">
+          {/* The buttons act on the city, so they stay on its row, pinned to the right
+              edge of the column — the same place whatever the language, rather than
+              trailing a subtitle whose length decides whether they fit. The name takes
+              the rest and wraps under itself if it runs long, leaving them where they are. */}
+          <div className="flex items-start justify-center gap-3 lg:justify-between">
+            <h1 className="min-w-0 text-[1.7rem] font-bold text-balance">{name}</h1>
+            <div className="flex shrink-0 gap-1.5 lg:mt-1">
               <button
                 type="button"
                 className="icon-btn icon-btn-sm"
