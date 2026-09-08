@@ -33,13 +33,19 @@ export default function Forecast({ data, selectedDay, onSelect }) {
         const dayDate = dateFor(i);
         const hi = fmt.temp(daily.temperature_2m_max[i]);
         const lo = fmt.temp(daily.temperature_2m_min[i]);
+        // Math.round(null) is 0, so a missing reading would read as a calm northerly
+        // rather than as nothing at all. The row is left out instead of guessed at.
+        const speed = daily.wind_speed_10m_max?.[i];
+        const deg = daily.wind_direction_10m_dominant?.[i];
+        const hasWind = speed != null && deg != null;
         return (
           <div
             key={date}
             role="button"
             tabIndex={0}
             aria-pressed={selectedDay === i}
-            aria-label={dict.dayAria(name, dayDate, label ?? dict.unknown, hi, lo)}
+            aria-label={dict.dayAria(name, dayDate, label ?? dict.unknown, hi, lo,
+              hasWind && fmt.windDir(deg), hasWind && fmt.wind(speed))}
             onClick={() => onSelect(i)}
             onKeyDown={e => {
               if (e.key !== "Enter" && e.key !== " ") return;
@@ -51,10 +57,25 @@ export default function Forecast({ data, selectedDay, onSelect }) {
               ${selectedDay === i ? "bg-white/30" : "bg-white/10"}`}
           >
             <div className="text-sm font-semibold">{name}</div>
-            <div className="text-xs opacity-65">{dayDate}</div>
+            <div className="text-xs opacity-75">{dayDate}</div>
             <div className="mt-1.5 mb-2 text-2xl">{icon}</div>
             <div className="font-bold">{hi}</div>
-            <div className="text-sm opacity-70">{lo}</div>
+            {/* Two rules doing two jobs: the short one separates readings of the same
+                kind, so it reads as the dash in a range; the full-bleed one below ends
+                the temperatures and starts a different measurement. White at a quarter
+                is invisible on this gradient — these are set where a hairline registers. */}
+            <div className="mx-auto my-1.5 h-px w-8 bg-white/50" />
+            <div className="text-sm opacity-90">{lo}</div>
+            {hasWind && (
+              <>
+                <div className="-mx-2 my-2 h-px bg-white/40" />
+                {/* The arrow says where the wind blows to, the same way it does in the
+                    panel above; a tile is too narrow for the compass word beside it. */}
+                <div className="text-xs opacity-80">
+                  {fmt.windArrow(deg)} {fmt.wind(speed)}
+                </div>
+              </>
+            )}
           </div>
         );
       })}

@@ -10,6 +10,9 @@ export const timeStr = iso => iso.slice(11, 16);
 export function formatters(unit, dict) {
   const imperial = unit === "f";
   const conv = c => (imperial ? c * 9 / 5 + 32 : c);
+  // Eight compass points, so every direction rounds to the nearest 45°. The arrow and
+  // the word are the same reading shown two ways; they share this so they cannot diverge.
+  const dir = deg => Math.round(deg / 45) % 8;
   return {
     conv,
     unitLetter: imperial ? "F" : "C",
@@ -18,9 +21,8 @@ export function formatters(unit, dict) {
     pressure: hPa => (imperial ? `${(hPa * 0.02953).toFixed(2)} inHg` : `${Math.round(hPa)} hPa`),
     distance: m => (imperial ? `${Math.round(m / 1609)} mi` : `${Math.round(m / 1000)} km`),
     rain: mm => (imperial ? `${(mm / 25.4).toFixed(2)} in` : `${mm.toFixed(1)} mm`),
-    windLabel: deg => {
-      const i = Math.round(deg / 45) % 8;
-      return `${dict.wind} · ${dict.compass[i]} ${ARROWS[i]}`;
-    }
+    windArrow: deg => ARROWS[dir(deg)],
+    windDir: deg => dict.compass[dir(deg)],
+    windLabel: deg => `${dict.wind} · ${dict.compass[dir(deg)]} ${ARROWS[dir(deg)]}`
   };
 }

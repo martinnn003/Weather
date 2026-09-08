@@ -124,6 +124,33 @@ describe("the app", () => {
     expect(screen.getByRole("button", { name: /^Днес, 26 юли:/ })).toBeTruthy();
   });
 
+  it("gives every day its wind, and says so in words for a screen reader", async () => {
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    // The fixture blows from 132° all ten days: south-east, so the arrow points north-west.
+    expect(within(forecastPanel).getAllByText("↖ 22 km/h")).toHaveLength(10);
+    // The arrow is a glyph a screen reader cannot say, so the label spells the bearing out.
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 22 km\/h$/ }))
+      .toBeTruthy();
+  });
+
+  it("leaves the wind out of a day that has none, rather than calling it calm", async () => {
+    const windless = {
+      ...forecast,
+      daily: { ...forecast.daily, wind_speed_10m_max: forecast.daily.time.map(() => null) }
+    };
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? respond(windless)
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    // Math.round(null) is 0, which would otherwise print a confident "0 km/h".
+    expect(within(forecastPanel).queryByText(/km\/h/)).toBeNull();
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°$/ })).toBeTruthy();
+  });
+
   it("shows live readings for today, including wind direction and air quality", async () => {
     show();
     await screen.findByText("София, България");
