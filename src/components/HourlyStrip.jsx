@@ -124,8 +124,17 @@ export default function HourlyStrip({ data, dayIndex }) {
                   <div className="text-sm opacity-75">{time}</div>
                   <div className="my-2 text-2xl">{icon}</div>
                   <div className="text-base font-semibold">{temp}</div>
-                  <div className="mt-1 text-xs opacity-80">💧{hour.rain}%</div>
-                  {wind && <div className="mt-1 text-xs opacity-80">{wind}</div>}
+                  {/* The same rules as a day's tile, so the two panels read alike: the
+                      full-bleed one ends the temperature, the pale one holds two unlike
+                      measurements apart. Set in the same small type, the chance of rain
+                      and the wind would otherwise run together into one reading. */}
+                  <div className="-mx-2 my-2 h-px bg-white/40" />
+                  <div className="flex flex-col gap-1.5 text-xs opacity-80">
+                    <div>💧{hour.rain}%</div>
+                    {/* An hour whose wind went missing has nothing below the rule to divide. */}
+                    {wind && <div className="-mx-2 h-px bg-white/25" />}
+                    {wind && <div>{wind}</div>}
+                  </div>
                 </div>
               );
             })}
