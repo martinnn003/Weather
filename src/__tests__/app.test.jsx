@@ -131,7 +131,7 @@ describe("the app", () => {
     // The fixture blows from 132° all ten days: south-east, so the arrow points north-west.
     expect(within(forecastPanel).getAllByText("↖ 22 km/h")).toHaveLength(10);
     // The arrow is a glyph a screen reader cannot say, so the label spells the bearing out.
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 22 km\/h$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 22 km\/h, валежи 1\.2 mm$/ }))
       .toBeTruthy();
   });
 
@@ -148,7 +148,37 @@ describe("the app", () => {
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // Math.round(null) is 0, which would otherwise print a confident "0 km/h".
     expect(within(forecastPanel).queryByText(/km\/h/)).toBeNull();
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°$/ })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1\.2 mm$/ }))
+      .toBeTruthy();
+  });
+
+  it("gives every day its rainfall as well, in the same block as the wind", async () => {
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    expect(within(forecastPanel).getAllByText("💧 1.2 mm")).toHaveLength(10);
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1\.2 mm$/ }))
+      .toBeTruthy();
+  });
+
+  it("prints a dry day's nought, and leaves only a missing total blank", async () => {
+    // Nought and nothing are different readings: the first says the day stays dry, the
+    // second that no one said. Only the second is allowed to leave the tile empty.
+    const dry = {
+      ...forecast,
+      daily: {
+        ...forecast.daily,
+        precipitation_sum: forecast.daily.time.map((_, i) => (i === 0 ? 0 : null))
+      }
+    };
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? respond(dry)
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    expect(within(forecastPanel).getByText("💧 0.0 mm")).toBeTruthy();
+    expect(within(forecastPanel).getAllByText(/mm$/)).toHaveLength(1);
   });
 
   it("shows live readings for today, including wind direction and air quality", async () => {

@@ -64,9 +64,10 @@ export const I18N = {
     defaultCity: "Sofia, Bulgaria",
     unknown: "Unknown",
     dateShort: (day, month) => `${MONTHS_EN[month]} ${day}`,
-    dayAria: (name, date, cond, hi, lo, windDir, windSpeed) =>
+    dayAria: (name, date, cond, hi, lo, windDir, windSpeed, rainfall) =>
       `${name}, ${date}: ${cond}, high ${hi}, low ${lo}`
       + (windSpeed ? `, wind ${windDir} ${windSpeed}` : "")
+      + (rainfall ? `, rainfall ${rainfall}` : "")
   },
   bg: {
     locale: "bg-BG",
@@ -126,9 +127,10 @@ export const I18N = {
     defaultCity: "София, България",
     unknown: "Неизвестно",
     dateShort: (day, month) => `${day} ${MONTHS_BG[month]}`,
-    dayAria: (name, date, cond, hi, lo, windDir, windSpeed) =>
+    dayAria: (name, date, cond, hi, lo, windDir, windSpeed, rainfall) =>
       `${name}, ${date}: ${cond}, макс. ${hi}, мин. ${lo}`
       + (windSpeed ? `, вятър ${windDir} ${windSpeed}` : "")
+      + (rainfall ? `, валежи ${rainfall}` : "")
   }
 };
 
