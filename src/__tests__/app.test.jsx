@@ -41,6 +41,8 @@ const forecast = {
     weather_code: Array.from({ length: hourCount }, () => 0),
     precipitation_probability: Array.from({ length: hourCount }, () => 10),
     visibility: Array.from({ length: hourCount }, () => 24140),
+    // Picks up through the day, so no two hours of a day share a reading: 00:00 is 4, 23:00 is 27.
+    wind_speed_10m: Array.from({ length: hourCount }, (_, i) => 4 + (i % 24)),
     is_day: Array.from({ length: hourCount }, (_, i) => ((i % 24) >= 6 && (i % 24) < 21 ? 1 : 0))
   }
 };
@@ -200,6 +202,30 @@ describe("the app", () => {
     expect(cellFor("18:00").className).not.toContain("opacity-45");
     expect(cellFor("23:00")).toBeTruthy();
     expect(strip.querySelector("svg path")).toBeTruthy(); // the temperature curve
+  });
+
+  it("gives every hour its own wind speed, so the day can be seen picking up", async () => {
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    const cellFor = time => within(strip).getByText(time).closest("div[title]");
+    expect(within(cellFor("10:00")).getByText("14 km/h")).toBeTruthy();
+    expect(within(cellFor("15:00")).getByText("19 km/h")).toBeTruthy();
+    expect(cellFor("15:00").title).toContain("19 km/h");
+  });
+
+  it("leaves an hour's wind blank when the forecast has none", async () => {
+    const calm = { ...forecast, hourly: { ...forecast.hourly, wind_speed_10m: undefined } };
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? respond(calm)
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    expect(within(strip).getAllByText(/^\d\d:00$/)).toHaveLength(24);
+    expect(within(strip).queryByText(/km\/h/)).toBeNull();
   });
 
   it("re-aims the strip at the new day instead of keeping the last scroll", async () => {

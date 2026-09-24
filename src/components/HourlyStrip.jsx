@@ -110,10 +110,13 @@ export default function HourlyStrip({ data, dayIndex }) {
               const { icon, label } = weatherFor(hour.code, lang, hour.isDay);
               const time = timeStr(hour.time);
               const temp = fmt.temp(hour.temp);
+              // A missing reading stays blank: Math.round(null) would print a confident 0.
+              const wind = hour.wind != null ? fmt.wind(hour.wind) : null;
               return (
                 <div
                   key={hour.time}
-                  title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${hour.rain}%`}
+                  title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${hour.rain}%`
+                    + (wind ? ` · ${wind}` : "")}
                   style={{ flex: `0 0 ${HOUR_W}px` }}
                   className={`rounded-xl bg-white/10 px-2 py-3 text-center transition-colors
                     hover:bg-white/20 ${hour.past ? "opacity-45" : ""}`}
@@ -122,6 +125,7 @@ export default function HourlyStrip({ data, dayIndex }) {
                   <div className="my-2 text-2xl">{icon}</div>
                   <div className="text-base font-semibold">{temp}</div>
                   <div className="mt-1 text-xs opacity-80">💧{hour.rain}%</div>
+                  {wind && <div className="mt-1 text-xs opacity-80">{wind}</div>}
                 </div>
               );
             })}
