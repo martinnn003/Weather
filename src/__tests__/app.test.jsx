@@ -17,7 +17,9 @@ const forecast = {
   current: {
     time: "2026-07-26T18:30", temperature_2m: 25.5, weather_code: 0, relative_humidity_2m: 61,
     apparent_temperature: 26.2, wind_speed_10m: 12.4, wind_direction_10m: 132,
-    surface_pressure: 1012.8, precipitation: 0, is_day: 1
+    surface_pressure: 1012.8, precipitation: 0, is_day: 1,
+    // Evening: the sun is all but down, though the day peaked at 7.4 (uv_index_max below).
+    uv_index: 0.2, precipitation_probability: 10
   },
   daily: {
     time: days,
@@ -241,6 +243,27 @@ describe("the app", () => {
     await screen.findByText("понеделник, 27 юли");
     expect(screen.getByRole("region", { name: "Почасова прогноза" })
       .querySelector(".scroll-x").scrollLeft).toBe(0);
+  });
+
+  it("reads UV and the chance of rain for the moment, with the day's peak in the label", async () => {
+    show();
+    await screen.findByText("София, България");
+    // The peak alone used to stand here, so an evening read UV 7.
+    const uv = screen.getByText("UV индекс · макс. 7").parentElement;
+    expect(within(uv).getByText("0")).toBeTruthy();
+    const rain = screen.getByText("Валежи · макс. 20%").parentElement;
+    expect(within(rain).getByText("10%")).toBeTruthy();
+  });
+
+  it("leaves UV and the chance of rain out when an older answer has no live reading", async () => {
+    const { uv_index, precipitation_probability, ...older } = forecast.current;
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? respond({ ...forecast, current: older })
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    expect(screen.queryByText(/^UV индекс/)).toBeNull();
+    expect(screen.queryByText(/^Валежи ·/)).toBeNull();
   });
 
   it("turns the panel into a day summary when a future day is picked", async () => {

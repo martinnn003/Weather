@@ -26,14 +26,23 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
 
   const nowIndex = Math.max(0, hourly.time.findIndex(time => time.startsWith(current.time.slice(0, 13))));
   const visibility = hourly.visibility?.[nowIndex];
+  // Every tile here is a reading of the moment, so UV and the chance of rain are too: the
+  // day's peak, shown bare among them, read as now and put a UV of 5 on a dark evening.
+  // The peak still tells the morning how the day will go, so it rides in the label, the
+  // way the band does for the air. A reading that is missing is left out, not guessed at.
+  const uvMax = daily.uv_index_max?.[0];
+  const rainMax = daily.precipitation_probability_max?.[0];
+  const withPeak = (label, peak) => (peak == null ? label : `${label} · ${dict.dayPeak} ${peak}`);
   return [
     ["🌡️", dict.feelsLike, fmt.temp(current.apparent_temperature)],
     ["💧", dict.humidity, `${current.relative_humidity_2m}%`],
     ["💨", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
     ["🧭", dict.pressure, fmt.pressure(current.surface_pressure)],
     ...(visibility == null ? [] : [["👁️", dict.visibility, fmt.distance(visibility)]]),
-    ["😎", dict.uv, Math.round(daily.uv_index_max[0] ?? 0)],
-    ["🌧️", dict.precip, `${daily.precipitation_probability_max[0] ?? 0}%`],
+    ...(current.uv_index == null ? [] : [["😎",
+      withPeak(dict.uv, uvMax == null ? null : Math.round(uvMax)), Math.round(current.uv_index)]]),
+    ...(current.precipitation_probability == null ? [] : [["🌧️",
+      withPeak(dict.precip, rainMax == null ? null : `${rainMax}%`), `${current.precipitation_probability}%`]]),
     ...(aqi == null ? [] : [["🍃", `${dict.air} · ${dict.aqi[aqiBand(aqi)]}`, Math.round(aqi)]]),
     ["🌅", dict.sunrise, timeStr(daily.sunrise[0])],
     ["🌇", dict.sunset, timeStr(daily.sunset[0])]
