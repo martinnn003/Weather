@@ -79,6 +79,7 @@ fallback.
 | `src/i18n.js` | Every interface string, one block per language |
 | `src/weatherCodes.js` | WMO codes → icons, labels and background groups |
 | `src/api.js` | Every network call in one place |
+| `src/merge.js` | Merges the two forecast models into one forecast; the seam and the rules are its `MERGE` config (pure, unit-tested) |
 | `src/format.js` | Metric → display conversions (°C/°F, km/h, hPa, km, mm) |
 | `src/hours.js` | Hourly filtering and the curve's geometry (pure, unit-tested) |
 | `src/place.js` | The "what am I showing" record, its URL and storage forms |
@@ -95,11 +96,21 @@ The data sources, none of which need an account or a key:
   coordinates.
 - `geocoding-api.open-meteo.com/v1/get` — looks a known place up by id to get its
   name in another language.
-- `api.open-meteo.com/v1/forecast` — returns `current`, `daily` and `hourly`
-  blocks for those coordinates, with `timezone=auto` and `forecast_days=10`.
-- `air-quality-api.open-meteo.com/v1/air-quality` — the European AQI, requested in
-  parallel with the forecast. It is optional: if it fails, the tile is left out and
-  nothing else is affected.
+- `api.open-meteo.com/v1/forecast` — one request for two models, DWD's ICON-EU
+  (`dwd_icon_eu`) and ECMWF's IFS HRES 9 km (`ecmwf_ifs`), with `timezone=auto` and
+  `forecast_days=10`. `src/merge.js` combines them hour by hour, each reading from the
+  model that is stronger for it at that range: temperature, humidity, cloud and gusts
+  are ICON-EU's for the first 96 hours, slide linearly into ECMWF's by hour 120 and are
+  ECMWF's after; rain and wind are ECMWF's throughout; the weather code is ICON-EU's for
+  five days and ECMWF's after, and a day under 0.2 mm loses its rain icon. Where one
+  model has no value, the other's is used. The day's figures and the readings for now
+  are worked out from the merged hours. The seam and the lists are one config object,
+  `MERGE`. Add `?debug=1` to the address to see under each day which model its
+  temperature (T) and rain (P) came from.
+- `air-quality-api.open-meteo.com/v1/air-quality` — the European AQI and the UV
+  index (CAMS; neither forecast model has UV), requested in parallel with the
+  forecast. UV reaches about five days; a day it does not fully cover has no UV tile.
+  It is optional: if it fails, those tiles are left out and nothing else is affected.
 - `api.rainviewer.com` + `tile.openstreetmap.org` — radar frames and the base map,
   used only while the radar panel is open.
 
@@ -160,7 +171,7 @@ The same hook names the chips in the saved-cities bar.
 `npm test` runs two suites with Vitest:
 
 - `src/__tests__/pure.test.js` — translations, weather codes, conversions, the hourly
-  filtering and the curve geometry.
+  filtering, the curve geometry and the merging of the two models.
 - `src/__tests__/app.test.jsx` — the whole app in jsdom against a stubbed API: the
   loading placeholder, day summaries, the hourly strip starting at the current hour,
   unit and language switching (including the city name), search, saved cities,
@@ -169,7 +180,8 @@ The same hook names the chips in the saved-cities bar.
 ## Credits
 
 - Weather, geocoding and air quality by [Open-Meteo](https://open-meteo.com/) under
-  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+  [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the forecast models are
+  DWD's ICON and ECMWF's IFS.
 - Radar imagery by [RainViewer](https://www.rainviewer.com/), base map
   © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, rendered
   with [Leaflet](https://leafletjs.com/).

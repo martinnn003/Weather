@@ -4,6 +4,7 @@ import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { dayCode, hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
+import { MERGE, daySources, mergeForecast } from "../merge.js";
 import { searchLangFor } from "../api.js";
 
 describe("translations", () => {
@@ -172,6 +173,134 @@ describe("a day's icon", () => {
   it("keeps the daily code when there is no daylight to average", () => {
     const polarNight = Array.from({ length: 48 }, () => 0);
     expect(dayCode(dayWith(2, () => 0, polarNight), 1)).toBe(2);
+  });
+});
+
+// Six days of two models that disagree by exactly 10°, so a blended hour shows how far
+// along the seam it is: ICON-EU says 10°, ECMWF 20°.
+const twoModels = (overrides = {}) => {
+  const hours = 6 * 24;
+  const dates = Array.from({ length: 6 }, (_, d) => `2026-10-0${d + 1}`);
+  const time = Array.from({ length: hours }, (_, i) =>
+    `${dates[Math.floor(i / 24)]}T${String(i % 24).padStart(2, "0")}:00`);
+  const flat = value => Array.from({ length: hours }, () => value);
+  const both = (name, icon, ecmwf) => ({
+    [`${name}_${MERGE.icon}`]: icon, [`${name}_${MERGE.ecmwf}`]: ecmwf
+  });
+  return {
+    current: { time: "2026-10-01T09:15", is_day: 1 },
+    daily: { time: dates, ...both("sunrise", dates.map(d => `${d}T07:10`), dates.map(() => null)) },
+    hourly: {
+      time,
+      ...both("temperature_2m", flat(10), flat(20)),
+      ...both("precipitation", flat(1), flat(0)),
+      ...both("weather_code", flat(61), flat(0)),
+      ...both("wind_speed_10m", flat(30), flat(5)),
+      ...both("wind_direction_10m", flat(90), flat(90)),
+      ...overrides
+    }
+  };
+};
+
+describe("merging the models", () => {
+  it("keeps ICON-EU before the seam, ECMWF after it, and slides between them", () => {
+    const { hourly, sources } = mergeForecast(twoModels());
+    const { start, end } = MERGE.seam;
+    expect(hourly.temperature_2m[0]).toBe(10);
+    expect(hourly.temperature_2m[start - 1]).toBe(10);
+    expect(hourly.temperature_2m[(start + end) / 2]).toBe(15);
+    expect(hourly.temperature_2m[end]).toBe(20);
+    expect([sources.temperature_2m[0], sources.temperature_2m[start + 1], sources.temperature_2m[end]])
+      .toEqual(["icon", "blend", "ecmwf"]);
+  });
+
+  it("takes rain and wind from ECMWF from the very first hour", () => {
+    const { hourly } = mergeForecast(twoModels());
+    expect(hourly.precipitation[0]).toBe(0);
+    expect(hourly.wind_speed_10m[0]).toBe(5);
+  });
+
+  it("switches the weather code at the end of the seam, with no halfway", () => {
+    const { hourly } = mergeForecast(twoModels());
+    expect(hourly.weather_code[MERGE.seam.end - 1]).toBe(61);
+    expect(hourly.weather_code[MERGE.seam.end]).toBe(0);
+  });
+
+  it("lets either model stand in where the other has nothing", () => {
+    const iconGap = Array.from({ length: 144 }, (_, i) => (i === 5 ? null : 10));
+    const ecmwfGap = Array.from({ length: 144 }, (_, i) => (i === 130 ? null : 20));
+    const { hourly, sources, daily } = mergeForecast(twoModels({
+      [`temperature_2m_${MERGE.icon}`]: iconGap,
+      [`temperature_2m_${MERGE.ecmwf}`]: ecmwfGap
+    }));
+    expect([hourly.temperature_2m[5], sources.temperature_2m[5]]).toEqual([20, "ecmwf"]);
+    expect([hourly.temperature_2m[130], sources.temperature_2m[130]]).toEqual([10, "icon"]);
+    expect(daily.sunrise[5]).toBe("2026-10-06T07:10"); // ECMWF's is missing
+  });
+
+  it("works the day out from the merged hours, not from either model's day", () => {
+    const { daily } = mergeForecast(twoModels({
+      [`precipitation_${MERGE.ecmwf}`]: Array.from({ length: 144 }, (_, i) => (i < 24 ? 0.1 : 0))
+    }));
+    expect(daily.temperature_2m_max[0]).toBe(10);
+    expect(daily.temperature_2m_max[5]).toBe(20);
+    expect(daily.precipitation_sum[0]).toBe(2.4); // ECMWF's, not ICON-EU's 24 mm
+    expect(daily.wind_speed_10m_max[0]).toBe(5);
+    expect(daily.wind_direction_10m_dominant[0]).toBe(90);
+  });
+
+  it("takes the rain out of the icon of a day that stays dry", () => {
+    // ICON-EU's code says rain all day; ECMWF's rainfall, the figure printed, is nothing.
+    const { daily } = mergeForecast(twoModels());
+    expect(daily.precipitation_sum[0]).toBe(0);
+    expect(daily.weather_code[0]).toBe(3);
+  });
+
+  it("keeps the rain in the icon once the day's rainfall reaches the threshold", () => {
+    const { daily } = mergeForecast(twoModels({
+      [`precipitation_${MERGE.ecmwf}`]: Array.from({ length: 144 }, (_, i) => (i === 14 ? MERGE.dryBelow : 0))
+    }));
+    expect(daily.weather_code[0]).toBe(61);
+  });
+
+  it("reads now off the merged hour it falls in", () => {
+    const { current } = mergeForecast(twoModels({
+      [`pressure_msl_${MERGE.icon}`]: Array.from({ length: 144 }, (_, i) => 1000 + i)
+    }));
+    expect(current.time).toBe("2026-10-01T09:15");
+    expect(current.temperature_2m).toBe(10); // ICON-EU's
+    expect(current.wind_speed_10m).toBe(5); // ECMWF's
+    expect(current.pressure_msl).toBe(1009);
+  });
+
+  it("finds a day's wind between 350° and 10° at north, not at south", () => {
+    const { daily } = mergeForecast(twoModels({
+      [`wind_direction_10m_${MERGE.ecmwf}`]: Array.from({ length: 144 }, (_, i) => (i % 2 ? 350 : 10))
+    }));
+    expect(daily.wind_direction_10m_dominant[0]).toBe(0);
+  });
+
+  it("gives a day UV only when the air-quality forecast covers all of it", () => {
+    const raw = twoModels();
+    const air = {
+      current: { uv_index: 3.1 },
+      hourly: {
+        time: raw.hourly.time.slice(0, 36), // all of the first day, half of the second
+        uv_index: raw.hourly.time.slice(0, 36).map((_, i) => (i % 24 === 13 ? 6 : 0))
+      }
+    };
+    const { current, daily } = mergeForecast(raw, air);
+    expect(current.uv_index).toBe(3.1);
+    expect(daily.uv_index_max.slice(0, 3)).toEqual([6, null, null]);
+    expect(mergeForecast(raw).daily.uv_index_max[0]).toBeNull(); // no air-quality answer
+  });
+
+  it("names a day's models for ?debug=1", () => {
+    const data = mergeForecast(twoModels());
+    expect(daySources(data, "temperature_2m", "2026-10-01")).toBe("ICON-EU");
+    expect(daySources(data, "temperature_2m", "2026-10-05")).toBe("ICON-EU→IFS");
+    expect(daySources(data, "temperature_2m", "2026-10-06")).toBe("IFS");
+    expect(daySources(data, "precipitation", "2026-10-01")).toBe("IFS");
   });
 });
 

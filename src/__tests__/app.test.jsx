@@ -4,58 +4,83 @@ import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-li
 import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 import { HOUR_W, HOUR_GAP } from "../hours.js";
+import { MERGE } from "../merge.js";
 
-// A ten-day forecast shaped exactly like Open-Meteo's, generated instead of stored
-// so the fixture stays readable. The run starts on 26 July and rolls over into
-// August, which is why the dates are counted rather than written out: "2026-07-32"
-// is what naive counting produces, and it is not a date.
+// A ten-day forecast, generated instead of stored so the fixture stays readable. The
+// run starts on 26 July and rolls over into August, which is why the dates are counted
+// rather than written out: "2026-07-32" is what naive counting produces, and it is not
+// a date.
 const days = Array.from({ length: 10 }, (_, i) =>
   new Date(Date.UTC(2026, 6, 26 + i)).toISOString().slice(0, 10));
 const hourCount = days.length * 24;
+const each = make => Array.from({ length: hourCount }, (_, i) => make(i % 24, Math.floor(i / 24)));
 
+// Written once, as the app reads it after merging: every hour of the ten days, and the
+// day's figures worked out from them, as the app does. `openMeteo` below turns it into
+// the answer Open-Meteo actually sends.
 const forecast = {
-  current: {
-    time: "2026-07-26T18:30", temperature_2m: 25.5, weather_code: 0, relative_humidity_2m: 61,
-    apparent_temperature: 26.2, wind_speed_10m: 12.4, wind_direction_10m: 132,
-    surface_pressure: 1012.8, precipitation: 0, is_day: 1,
-    // Evening: the sun is all but down, though the day peaked at 7.4 (uv_index_max below).
-    uv_index: 0.2, precipitation_probability: 10
-  },
+  current: { time: "2026-07-26T18:30", is_day: 1 },
   daily: {
     time: days,
-    weather_code: days.map((_, i) => (i === 3 ? 63 : 0)),
-    temperature_2m_max: days.map((_, i) => 28 + i),
-    temperature_2m_min: days.map((_, i) => 18 + i),
-    apparent_temperature_max: days.map((_, i) => 30 + i),
-    wind_speed_10m_max: days.map(() => 22),
-    wind_gusts_10m_max: days.map(() => 41),
-    wind_direction_10m_dominant: days.map(() => 132),
     sunrise: days.map(d => `${d}T06:05`),
-    sunset: days.map(d => `${d}T20:45`),
-    uv_index_max: days.map(() => 7.4),
-    precipitation_probability_max: days.map(() => 20),
-    precipitation_sum: days.map(() => 1.2)
+    sunset: days.map(d => `${d}T20:45`)
   },
   hourly: {
-    time: Array.from({ length: hourCount }, (_, i) =>
-      `${days[Math.floor(i / 24)]}T${String(i % 24).padStart(2, "0")}:00`),
-    temperature_2m: Array.from({ length: hourCount }, (_, i) => 15 + (i % 24) / 2),
-    weather_code: Array.from({ length: hourCount }, () => 0),
-    precipitation_probability: Array.from({ length: hourCount }, () => 10),
-    visibility: Array.from({ length: hourCount }, () => 24140),
+    time: each((h, d) => `${days[d]}T${String(h).padStart(2, "0")}:00`),
+    // From 18° at midnight to 28° at 23:00, a degree warmer each day, so day i runs from
+    // 18+i to 28+i; now, at 18:00 on the first day, it reads 25.8°.
+    temperature_2m: each((h, d) => 18 + d + (h * 10) / 23),
+    apparent_temperature: each((h, d) => 19 + d + (h * 10) / 23),
+    relative_humidity_2m: each(() => 61),
+    cloud_cover: each(() => 0),
+    cloud_cover_low: each(() => 0),
+    wind_gusts_10m: each(() => 41),
+    // The fourth day has a wet afternoon; every other hour is clear.
+    weather_code: each((h, d) => (d === 3 && h >= 12 && h < 18 ? 63 : 0)),
+    precipitation: each(() => 0.05), // 1.2 mm a day
+    // 20% at two in the afternoon and 10% otherwise, so the day's peak is not the hour's.
+    precipitation_probability: each(h => (h === 14 ? 20 : 10)),
+    visibility: each(() => 24140),
     // Picks up through the day, so no two hours of a day share a reading: 00:00 is 4, 23:00 is 27.
-    wind_speed_10m: Array.from({ length: hourCount }, (_, i) => 4 + (i % 24)),
-    is_day: Array.from({ length: hourCount }, (_, i) => ((i % 24) >= 6 && (i % 24) < 21 ? 1 : 0))
+    wind_speed_10m: each(h => 4 + h),
+    wind_direction_10m: each(() => 132),
+    pressure_msl: each(() => 1012.8),
+    is_day: each(h => (h >= 6 && h < 21 ? 1 : 0))
+  }
+};
+
+// The app asks for two models at once, and Open-Meteo answers with every hourly series
+// twice, suffixed with each model's id. Both get the same readings here, so the merge
+// has nothing to choose between and every reading above is the one that reaches the screen.
+const openMeteo = ({ current, daily, hourly }) => {
+  const twice = (block, names) => Object.fromEntries(names.flatMap(name =>
+    [MERGE.icon, MERGE.ecmwf].map(model => [`${name}_${model}`, block[name]])));
+  const { time, ...series } = hourly;
+  return {
+    current,
+    daily: { time: daily.time, ...twice(daily, ["sunrise", "sunset"]) },
+    hourly: { time, ...twice(hourly, Object.keys(series)) }
+  };
+};
+
+// CAMS's UV, which the air-quality answer carries: seven days of it, peaking at 7.4 at
+// one in the afternoon, and 0.2 now, in the evening. The last three days are past its reach.
+const air = {
+  current: { european_aqi: 40, uv_index: 0.2 },
+  hourly: {
+    time: forecast.hourly.time.slice(0, 7 * 24),
+    uv_index: each(h => (h === 13 ? 7.4 : h >= 6 && h < 21 ? 2 : 0)).slice(0, 7 * 24)
   }
 };
 
 const respond = body => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+const answer = shape => respond(openMeteo(shape));
 
 // A test that needs a different answer overrides this; `beforeEach` puts it back,
 // since clearing a mock forgets its calls but keeps whatever implementation it was given.
 const defaultFetch = url => {
-  if (url.includes("/v1/forecast")) return respond(forecast);
-  if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
+  if (url.includes("/v1/forecast")) return answer(forecast);
+  if (url.includes("air-quality")) return respond(air);
   if (url.includes("/v1/get")) {
     const place = { id: 728193, latitude: 42.15, longitude: 24.75 };
     return respond(url.includes("language=bg")
@@ -133,19 +158,17 @@ describe("the app", () => {
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // The fixture blows from 132° all ten days: south-east, so the arrow points north-west.
-    expect(within(forecastPanel).getAllByText("↖ 22 km/h")).toHaveLength(10);
+    // The speed is the day's strongest hour, 23:00's.
+    expect(within(forecastPanel).getAllByText("↖ 27 km/h")).toHaveLength(10);
     // The arrow is a glyph a screen reader cannot say, so the label spells the bearing out.
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 22 km\/h, валежи 1\.2 mm$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 km\/h, валежи 1\.2 mm$/ }))
       .toBeTruthy();
   });
 
   it("leaves the wind out of a day that has none, rather than calling it calm", async () => {
-    const windless = {
-      ...forecast,
-      daily: { ...forecast.daily, wind_speed_10m_max: forecast.daily.time.map(() => null) }
-    };
+    const windless = { ...forecast, hourly: { ...forecast.hourly, wind_speed_10m: each(() => null) } };
     fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
-      ? respond(windless)
+      ? answer(windless)
       : defaultFetch(url)));
     show();
     await screen.findByText("София, България");
@@ -170,13 +193,10 @@ describe("the app", () => {
     // second that no one said. Only the second is allowed to leave the tile empty.
     const dry = {
       ...forecast,
-      daily: {
-        ...forecast.daily,
-        precipitation_sum: forecast.daily.time.map((_, i) => (i === 0 ? 0 : null))
-      }
+      hourly: { ...forecast.hourly, precipitation: each((h, d) => (d === 0 ? 0 : null)) }
     };
     fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
-      ? respond(dry)
+      ? answer(dry)
       : defaultFetch(url)));
     show();
     await screen.findByText("София, България");
@@ -220,7 +240,7 @@ describe("the app", () => {
   it("leaves an hour's wind blank when the forecast has none", async () => {
     const calm = { ...forecast, hourly: { ...forecast.hourly, wind_speed_10m: undefined } };
     fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
-      ? respond(calm)
+      ? answer(calm)
       : defaultFetch(url)));
     show();
     await screen.findByText("София, България");
@@ -255,15 +275,55 @@ describe("the app", () => {
     expect(within(rain).getByText("10%")).toBeTruthy();
   });
 
-  it("leaves UV and the chance of rain out when an older answer has no live reading", async () => {
-    const { uv_index, precipitation_probability, ...older } = forecast.current;
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
-      ? respond({ ...forecast, current: older })
-      : defaultFetch(url)));
+  it("leaves UV and the chance of rain out when no one gave a reading", async () => {
+    const unknown = {
+      ...forecast,
+      hourly: { ...forecast.hourly, precipitation_probability: each(() => null) }
+    };
+    fetchStub.mockImplementation(url => {
+      if (url.includes("/v1/forecast")) return answer(unknown);
+      if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
+      return defaultFetch(url);
+    });
     show();
     await screen.findByText("София, България");
     expect(screen.queryByText(/^UV индекс/)).toBeNull();
     expect(screen.queryByText(/^Валежи ·/)).toBeNull();
+  });
+
+  it("gives UV to the days the air-quality forecast reaches, and to no others", async () => {
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    fireEvent.click(within(forecastPanel).getAllByRole("button")[6]); // 1 August, the last
+    expect(await screen.findByText("UV индекс")).toBeTruthy();
+    fireEvent.click(within(forecastPanel).getAllByRole("button")[7]); // 2 August, past it
+    await screen.findByText("неделя, 2 август");
+    // A 0 here would claim a dark day; nothing is what was forecast.
+    expect(screen.queryByText("UV индекс")).toBeNull();
+  });
+
+  it("names the models under every day when the address asks for it", async () => {
+    history.replaceState(null, "", "/?debug=1");
+    show();
+    await screen.findByText("София, България");
+    const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
+      .getAllByRole("button");
+    // ICON-EU for four days, the slide into ECMWF on the fifth, ECMWF after; the rain is
+    // ECMWF's throughout.
+    expect(within(tiles[0]).getByText("T: ICON-EU")).toBeTruthy();
+    expect(within(tiles[4]).getByText("T: ICON-EU→IFS")).toBeTruthy();
+    expect(within(tiles[9]).getByText("T: IFS")).toBeTruthy();
+    expect(within(tiles[0]).getByText("P: IFS")).toBeTruthy();
+    // Home rewrites the address to its bare self, and must not drop the flag doing it.
+    expect(location.search).toBe("?debug=1");
+  });
+
+  it("names no models without the flag", async () => {
+    show();
+    await screen.findByText("София, България");
+    expect(screen.queryByText(/^T: /)).toBeNull();
+    expect(screen.getByText(/ICON \(DWD\), IFS \(ECMWF\), CC BY 4\.0/)).toBeTruthy();
   });
 
   it("turns the panel into a day summary when a future day is picked", async () => {
@@ -392,7 +452,7 @@ describe("the app", () => {
           : { id: 1487764, latitude: 53.38, longitude: 60.98, name: "Варна", country: "Русия" });
       }
       if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
-      return respond(forecast);
+      return answer(forecast);
     });
     show();
     await screen.findByText("София, България");
@@ -451,7 +511,7 @@ describe("the app", () => {
   it("sends a dead city address home with a word of explanation", async () => {
     fetchStub.mockImplementation(url => (url.includes("/v1/get")
       ? Promise.resolve({ ok: false, status: 404 })
-      : respond(forecast)));
+      : answer(forecast)));
     history.replaceState(null, "", "/nowhere-999999999");
     show();
     expect(await screen.findByText(/Този град не беше намерен/)).toBeTruthy();

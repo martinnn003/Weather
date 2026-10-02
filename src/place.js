@@ -66,19 +66,26 @@ export function loadPlace() {
 
 export const savePlace = place => localStorage.setItem("lastCity", JSON.stringify(place));
 
+// ?debug=1 shows under each day which model its readings came from.
+export const debugOn = (search = location.search) =>
+  new URLSearchParams(search).get("debug") === "1";
+
 // Keeps the address bar shareable: it always describes what is on screen. A searched
 // city has an id and so gets a path of its own; "my location" and old shared links
 // have none, and keep naming themselves in the query string. Home is the exception —
 // it is what the site shows without being asked, so there is nothing to describe and
 // the bare address stays bare. Language and unit live in storage too, so dropping them
 // there costs the reader nothing; only a link shared from the home page arrives in the
-// reader's own language rather than the sender's.
+// reader's own language rather than the sender's. ?debug=1 rides along through every
+// rewrite, home included, or the first would drop it and a reload come back without it.
 export function syncUrl(place, name, lang, unit) {
+  const debug = debugOn();
   if (place.labelKey === "defaultCity" && samePlace(place, DEFAULT_PLACE)) {
-    history.replaceState(null, "", "/");
+    history.replaceState(null, "", debug ? "/?debug=1" : "/");
     return;
   }
   const query = new URLSearchParams({ lang, unit });
+  if (debug) query.set("debug", "1");
   if (!place.geoId) {
     query.set("lat", place.lat);
     query.set("lon", place.lon);

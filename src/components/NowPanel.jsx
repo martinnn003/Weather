@@ -10,13 +10,15 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
   if (dayIndex > 0) {
     const gusts = daily.wind_gusts_10m_max?.[dayIndex];
     const windFrom = daily.wind_direction_10m_dominant?.[dayIndex];
+    // UV runs out about five days ahead; a later day has none, and a 0 would claim a dark one.
+    const uv = daily.uv_index_max?.[dayIndex];
     return [
       ["⬆️", dict.high, fmt.temp(daily.temperature_2m_max[dayIndex])],
       ["⬇️", dict.low, fmt.temp(daily.temperature_2m_min[dayIndex])],
       ["🌡️", dict.feelsLike, fmt.temp(daily.apparent_temperature_max[dayIndex])],
       ["💨", windFrom == null ? dict.wind : fmt.windLabel(windFrom), fmt.wind(daily.wind_speed_10m_max[dayIndex])],
       ...(gusts == null ? [] : [["🌪️", dict.gusts, fmt.wind(gusts)]]),
-      ["😎", dict.uv, Math.round(daily.uv_index_max[dayIndex] ?? 0)],
+      ...(uv == null ? [] : [["😎", dict.uv, Math.round(uv)]]),
       ["🌧️", dict.precip, `${daily.precipitation_probability_max[dayIndex] ?? 0}%`],
       ["☔", dict.precipTotal, fmt.rain(daily.precipitation_sum[dayIndex] ?? 0)],
       ["🌅", dict.sunrise, timeStr(daily.sunrise[dayIndex])],
@@ -37,7 +39,7 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
     ["🌡️", dict.feelsLike, fmt.temp(current.apparent_temperature)],
     ["💧", dict.humidity, `${current.relative_humidity_2m}%`],
     ["💨", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
-    ["🧭", dict.pressure, fmt.pressure(current.surface_pressure)],
+    ["🧭", dict.pressure, fmt.pressure(current.pressure_msl)],
     ...(visibility == null ? [] : [["👁️", dict.visibility, fmt.distance(visibility)]]),
     ...(current.uv_index == null ? [] : [["😎",
       withPeak(dict.uv, uvMax == null ? null : Math.round(uvMax)), Math.round(current.uv_index)]]),

@@ -157,8 +157,10 @@ export default function App() {
       </main>
 
       <footer className="p-6 text-center text-xs opacity-70">
-        {dict.footerPrefix}
-        <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo</a>
+        {/* The attribution the models' licences ask for, worded the same in every language. */}
+        Weather data:{" "}
+        <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>
+        {" · ICON (DWD), IFS (ECMWF), CC BY 4.0"}
       </footer>
 
       {toast && (

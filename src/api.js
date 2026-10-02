@@ -1,13 +1,13 @@
-// Every endpoint here is free and needs no key.
-const FORECAST =
-  "&current=temperature_2m,weather_code,relative_humidity_2m,apparent_temperature," +
-  "wind_speed_10m,wind_direction_10m,surface_pressure,precipitation,is_day," +
-  "uv_index,precipitation_probability" +
-  "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max," +
-  "wind_speed_10m_max,wind_gusts_10m_max,wind_direction_10m_dominant,sunrise,sunset," +
-  "uv_index_max,precipitation_probability_max,precipitation_sum" +
-  "&hourly=temperature_2m,weather_code,precipitation_probability,visibility,is_day,wind_speed_10m" +
-  "&timezone=auto&forecast_days=10";
+import { forecastQuery, mergeForecast } from "./merge.js";
+
+// Every endpoint here is free and needs no key. Which models the forecast is asked of,
+// and how their answers are combined, is merge.js's business; only the clock and is_day
+// are asked for as "current", since the readings for now come out of the merge.
+const FORECAST = `${forecastQuery()}&daily=sunrise,sunset&current=is_day&timezone=auto&forecast_days=10`;
+
+// The air-quality answer also carries the UV, CAMS's, which neither forecast model has.
+// It reaches about five days; seven are asked for so that none of them is cut short.
+const AIR = "&current=european_aqi,uv_index&hourly=uv_index&timezone=auto&forecast_days=7";
 
 const json = async res => {
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -19,12 +19,13 @@ export async function fetchWeather(lat, lon) {
   const [weather, air] = await Promise.allSettled([
     fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${FORECAST}`).then(json),
     fetch("https://air-quality-api.open-meteo.com/v1/air-quality" +
-      `?latitude=${lat}&longitude=${lon}&current=european_aqi&timezone=auto`).then(json)
+      `?latitude=${lat}&longitude=${lon}${AIR}`).then(json)
   ]);
   if (weather.status === "rejected") throw weather.reason;
+  const airValue = air.status === "fulfilled" ? air.value : null;
   return {
-    data: weather.value,
-    aqi: air.status === "fulfilled" ? air.value?.current?.european_aqi ?? null : null
+    data: mergeForecast(weather.value, airValue),
+    aqi: airValue?.current?.european_aqi ?? null
   };
 }
 

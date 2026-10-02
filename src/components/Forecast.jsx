@@ -1,10 +1,13 @@
 import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { dayCode } from "../hours.js";
+import { daySources } from "../merge.js";
+import { debugOn } from "../place.js";
 
 export default function Forecast({ data, selectedDay, onSelect }) {
   const { dict, lang, fmt } = useSettings();
   const { daily } = data;
+  const debug = debugOn();
 
   // A date arrives as "2026-08-07" and means that day wherever the place is. Parsing it
   // to a Date pins it to UTC midnight, which a browser west of Greenwich then reads back
@@ -90,6 +93,12 @@ export default function Forecast({ data, selectedDay, onSelect }) {
                   {hasRain && <div>💧 {fmt.rain(rain)}</div>}
                 </div>
               </>
+            )}
+            {debug && (
+              <div className="mt-2 text-[10px] leading-tight opacity-70">
+                <div>T: {daySources(data, "temperature_2m", date)}</div>
+                <div>P: {daySources(data, "precipitation", date)}</div>
+              </div>
             )}
           </div>
         );
