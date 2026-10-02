@@ -17,8 +17,8 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
       ["🌡️", dict.feelsLike, fmt.temp(daily.apparent_temperature_max[dayIndex])],
       ["💨", windFrom == null ? dict.wind : fmt.windLabel(windFrom), fmt.wind(daily.wind_speed_10m_max[dayIndex])],
       ...(gusts == null ? [] : [["🌪️", dict.gusts, fmt.wind(gusts)]]),
-      ...(uv == null ? [] : [["😎", dict.uv, Math.round(uv)]]),
-      ["🌧️", dict.precip, `${daily.precipitation_probability_max[dayIndex] ?? 0}%`],
+      ...(uv == null ? [] : [["😎", dict.uv, fmt.num(uv)]]),
+      ["🌧️", dict.precip, fmt.percent(daily.precipitation_probability_max[dayIndex] ?? 0)],
       ["☔", dict.precipTotal, fmt.rain(daily.precipitation_sum[dayIndex] ?? 0)],
       ["🌅", dict.sunrise, timeStr(daily.sunrise[dayIndex])],
       ["🌇", dict.sunset, timeStr(daily.sunset[dayIndex])]
@@ -36,15 +36,15 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
   const withPeak = (label, peak) => (peak == null ? label : `${label} · ${dict.dayPeak} ${peak}`);
   return [
     ["🌡️", dict.feelsLike, fmt.temp(current.apparent_temperature)],
-    ["💧", dict.humidity, `${current.relative_humidity_2m}%`],
+    ["💧", dict.humidity, fmt.percent(current.relative_humidity_2m)],
     ["💨", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
     ["🧭", dict.pressure, fmt.pressure(current.pressure_msl)],
     ...(visibility == null ? [] : [["👁️", dict.visibility, fmt.distance(visibility)]]),
     ...(current.uv_index == null ? [] : [["😎",
-      withPeak(dict.uv, uvMax == null ? null : Math.round(uvMax)), Math.round(current.uv_index)]]),
+      withPeak(dict.uv, uvMax == null ? null : fmt.num(uvMax)), fmt.num(current.uv_index)]]),
     ...(current.precipitation_probability == null ? [] : [["🌧️",
-      withPeak(dict.precip, rainMax == null ? null : `${rainMax}%`), `${current.precipitation_probability}%`]]),
-    ...(aqi == null ? [] : [["🍃", `${dict.air} · ${dict.aqi[aqiBand(aqi)]}`, Math.round(aqi)]]),
+      withPeak(dict.precip, rainMax == null ? null : fmt.percent(rainMax)), fmt.percent(current.precipitation_probability)]]),
+    ...(aqi == null ? [] : [["🍃", `${dict.air} · ${dict.aqi[aqiBand(aqi)]}`, fmt.num(aqi)]]),
     ["🌅", dict.sunrise, timeStr(daily.sunrise[0])],
     ["🌇", dict.sunset, timeStr(daily.sunset[0])]
   ];

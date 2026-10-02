@@ -115,7 +115,7 @@ export default function HourlyStrip({ data, dayIndex }) {
               return (
                 <div
                   key={hour.time}
-                  title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${hour.rain}%`
+                  title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
                     + (wind ? ` · ${wind}` : "")}
                   style={{ flex: `0 0 ${HOUR_W}px` }}
                   className={`rounded-xl bg-white/10 px-2 py-3 text-center transition-colors
@@ -130,7 +130,7 @@ export default function HourlyStrip({ data, dayIndex }) {
                       and the wind would otherwise run together into one reading. */}
                   <div className="-mx-2 my-2 h-px bg-white/40" />
                   <div className="flex flex-col gap-1.5 text-xs opacity-80">
-                    <div>💧{hour.rain}%</div>
+                    <div>💧{fmt.percent(hour.rain)}</div>
                     {/* An hour whose wind went missing has nothing below the rule to divide. */}
                     {wind && <div className="-mx-2 h-px bg-white/25" />}
                     {wind && <div>{wind}</div>}

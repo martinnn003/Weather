@@ -163,7 +163,7 @@ describe("the app", () => {
     // The speed is the day's strongest hour, 23:00's.
     expect(within(forecastPanel).getAllByText("↖ 27 км/ч")).toHaveLength(10);
     // The arrow is a glyph a screen reader cannot say, so the label spells the bearing out.
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 км\/ч, валежи 1\.2 мм$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 км\/ч, валежи 1,2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -177,7 +177,7 @@ describe("the app", () => {
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // Math.round(null) is 0, which would otherwise print a confident "0 км/ч".
     expect(within(forecastPanel).queryByText(/км\/ч/)).toBeNull();
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1\.2 мм$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1,2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -185,8 +185,8 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getAllByText("💧 1.2 мм")).toHaveLength(10);
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1\.2 мм$/ }))
+    expect(within(forecastPanel).getAllByText("💧 1,2 мм")).toHaveLength(10);
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1,2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -209,9 +209,9 @@ describe("the app", () => {
     const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
       .getAllByRole("button");
     expect(within(tiles[0]).getByText(CODES[0].icon)).toBeTruthy();
-    expect(within(tiles[0]).getByText("💧 0.0 мм")).toBeTruthy();
+    expect(within(tiles[0]).getByText("💧 0,0 мм")).toBeTruthy();
     expect(within(tiles[1]).getByText(CODES[61].icon)).toBeTruthy();
-    expect(within(tiles[1]).getByText("💧 3.0 мм")).toBeTruthy();
+    expect(within(tiles[1]).getByText("💧 3,0 мм")).toBeTruthy();
   });
 
   it("prints a dry day's nought, and leaves only a missing total blank", async () => {
@@ -227,7 +227,7 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getByText("💧 0.0 мм")).toBeTruthy();
+    expect(within(forecastPanel).getByText("💧 0,0 мм")).toBeTruthy();
     expect(within(forecastPanel).getAllByText(/мм$/)).toHaveLength(1);
   });
 
@@ -376,7 +376,7 @@ describe("the app", () => {
     await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "°F" }));
     expect(await screen.findByText("78°F")).toBeTruthy();
-    expect(screen.getByText("29.91 inHg")).toBeTruthy();
+    expect(screen.getByText("29,91 inHg")).toBeTruthy();
   });
 
   it("translates the whole interface, including the city name", async () => {
