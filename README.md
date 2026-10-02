@@ -101,9 +101,15 @@ The data sources, none of which need an account or a key:
   `forecast_days=10`. `src/merge.js` combines them hour by hour, each reading from the
   model that is stronger for it at that range: temperature, humidity, cloud and gusts
   are ICON-EU's for the first 96 hours, slide linearly into ECMWF's by hour 120 and are
-  ECMWF's after; rain and wind are ECMWF's throughout; the weather code is ICON-EU's for
-  five days and ECMWF's after, and a day under 0.2 mm loses its rain icon. Where one
-  model has no value, the other's is used. The day's figures and the readings for now
+  ECMWF's after; rain, snowfall and wind are ECMWF's throughout. Where one model has
+  no value, the other's is used. The icons are not the models' weather codes but are
+  built from the merged readings, so an icon can never contradict the rain printed
+  under it: an hour from 0.1 mm and a day from 0.2 mm show rain (snow if ECMWF has
+  snowfall), graded by the heaviest hour — rain by mm/h (light under 2.5, heavy from
+  7.6), snow by cm/h (light under 1.3, heavy above 2.5); a dry hour shows its cloud cover (under 20%
+  clear, under 50% mostly clear, up to 80% partly cloudy, overcast above), and a dry
+  day the mean cloud cover from 08:00 to 18:00. The models' codes are consulted only
+  for storms (when something falls) and fog (when nothing does). The day's figures and the readings for now
   are worked out from the merged hours. The seam and the lists are one config object,
   `MERGE`. Add `?debug=1` to the address to see under each day which model its
   temperature (T) and rain (P) came from.
@@ -181,7 +187,7 @@ The same hook names the chips in the saved-cities bar.
 
 - Weather, geocoding and air quality by [Open-Meteo](https://open-meteo.com/) under
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the forecast models are
-  DWD's ICON and ECMWF's IFS.
+  DWD's ICON and ECMWF's IFS, and the air quality and UV are CAMS (Copernicus).
 - Radar imagery by [RainViewer](https://www.rainviewer.com/), base map
   © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, rendered
   with [Leaflet](https://leafletjs.com/).

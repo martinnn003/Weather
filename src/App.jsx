@@ -160,7 +160,7 @@ export default function App() {
         {/* The attribution the models' licences ask for, worded the same in every language. */}
         Weather data:{" "}
         <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>
-        {" · ICON (DWD), IFS (ECMWF), CC BY 4.0"}
+        {" · ICON (DWD), IFS (ECMWF), CAMS (Copernicus), CC BY 4.0"}
       </footer>
 
       {toast && (

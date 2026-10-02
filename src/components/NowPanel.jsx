@@ -1,7 +1,6 @@
 import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { aqiBand, timeStr } from "../format.js";
-import { dayCode } from "../hours.js";
 
 // Today shows live readings; a selected future day shows that day's aggregates.
 function tilesFor(data, aqi, dayIndex, dict, fmt) {
@@ -58,7 +57,7 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
   const isDay = current.is_day === 1;
 
   const { icon, label } = day > 0
-    ? weatherFor(dayCode(data, day), lang)
+    ? weatherFor(daily.weather_code[day], lang)
     : weatherFor(current.weather_code, lang, isDay);
 
   // Read in UTC, like the forecast strip: a date means that day wherever the place is,

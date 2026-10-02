@@ -13,18 +13,64 @@ export const MERGE = {
   blended: ["temperature_2m", "apparent_temperature", "relative_humidity_2m",
     "cloud_cover", "cloud_cover_low", "wind_gusts_10m"],
   // ECMWF's for all ten days. The chance of rain goes with the rain it is a chance of.
-  ecmwfOnly: ["precipitation", "wind_speed_10m", "wind_direction_10m", "precipitation_probability"],
+  ecmwfOnly: ["precipitation", "snowfall", "wind_speed_10m", "wind_direction_10m",
+    "precipitation_probability"],
   // ICON-EU's until the seam ends, ECMWF's after it: a category has no halfway, and the
-  // rest are only ever read for the hour that is now.
+  // rest are only ever read for the hour that is now. The models' own weather code is
+  // not shown as it comes; the icons below are built from the merged readings, and the
+  // code is consulted only for what those cannot tell, a storm or fog.
   switched: ["weather_code", "visibility", "is_day", "pressure_msl"],
-  // A day whose rain comes to less than this, in mm, keeps no rain in its icon.
-  dryBelow: 0.2,
+  icons: {
+    // mm: an hour from this much on, or a day from this much on, shows falling weather.
+    wetHour: 0.1,
+    wetDay: 0.2,
+    // % cloud cover: under 20 clear, under 50 mostly clear, up to 80 partly cloudy, over it overcast.
+    clouds: [20, 50, 80],
+    // Rain by its water, mm an hour: light under 2.5, heavy from 7.6, moderate between.
+    rainRates: [2.5, 7.6],
+    // Snow by its depth, cm an hour: light under 1.3, moderate up to 2.5, heavy above it.
+    snowRates: [1.3, 2.5],
+    // Local hours, both included, whose mean cloud cover is a dry day's sky.
+    daytime: [8, 18]
+  },
   // How ?debug=1 names a reading's origin.
   labels: { icon: "ICON-EU", ecmwf: "IFS", blend: "ICON-EU→IFS" }
 };
 
 // WMO codes from here up all fall from the sky: drizzle, rain, snow, showers, storms.
 const FALLING = 51;
+const isStorm = code => code >= 95 && code <= 99;
+const isFog = code => code === 45 || code === 48;
+
+const sky = cover => {
+  const [clear, mostly, partly] = MERGE.icons.clouds;
+  if (cover < clear) return 0;
+  if (cover < mostly) return 1;
+  return cover <= partly ? 2 : 3;
+};
+
+// `rain` is mm an hour of water, `snow` cm an hour of ECMWF's snowfall: any snow makes it
+// snow, graded by its own depth, since a millimetre of water can fall as a centimetre of it.
+const falling = (rain, snow) => {
+  if (snow > 0) {
+    const [light, heavy] = MERGE.icons.snowRates;
+    return snow < light ? 71 : snow <= heavy ? 73 : 75;
+  }
+  const [light, heavy] = MERGE.icons.rainRates;
+  return rain < light ? 61 : rain < heavy ? 63 : 65;
+};
+
+// One hour's icon. Whether anything falls is the merged rain's to say, so an icon can no
+// longer rain over a dry hour or shine over a wet one; snow is ECMWF's snowfall, and the
+// sky is the merged cloud cover. The model's code is kept only where the readings are
+// silent: a storm, if something is falling, and fog, if nothing is.
+function hourCode(model, rain, snow, cover) {
+  if (rain == null) return model; // nothing to hold the model to
+  if (rain >= MERGE.icons.wetHour) return isStorm(model) ? model : falling(rain, snow);
+  if (isFog(model)) return model;
+  if (cover != null) return sky(cover);
+  return model != null && model < FALLING ? model : null;
+}
 
 export function forecastQuery() {
   const { icon, ecmwf, blended, ecmwfOnly, switched } = MERGE;
@@ -60,11 +106,37 @@ function dominant(bearings, speeds) {
   return (Math.round(Math.atan2(x, y) * 180 / Math.PI) + 360) % 360;
 }
 
+// A day's icon, built like an hour's from the rain printed under it: falling weather from
+// the day's total, snow if ECMWF had any, a storm if one of its wet hours was one, and its
+// heaviest hour for how hard. A dry day shows its daytime sky, the mean cloud cover over
+// `daytime`, unless fog held most of those hours: a foggy morning alone is not a foggy day.
+function dayIcon(hours, hourly, rain) {
+  const { wetDay, daytime: [from, to] } = MERGE.icons;
+  const codes = hours.map(i => hourly.weather_code[i]).filter(code => code != null);
+  if (rain == null) return max(codes); // no rain to judge by: the worst hour, as Open-Meteo has it
+  if (rain >= wetDay) {
+    const storms = codes.filter(isStorm);
+    if (storms.length) return max(storms);
+    const hourRain = hours.map(i => hourly.precipitation[i]).filter(v => v != null);
+    const hourSnow = hours.map(i => hourly.snowfall[i]).filter(v => v != null);
+    return falling(max(hourRain), max(hourSnow));
+  }
+  const day = hours.filter(i => {
+    const hour = Number(hourly.time[i].slice(11, 13));
+    return hour >= from && hour <= to;
+  });
+  const fog = day.map(i => hourly.weather_code[i]).filter(isFog);
+  if (fog.length * 2 > day.length) return max(fog);
+  const covers = day.map(i => hourly.cloud_cover[i]).filter(v => v != null);
+  if (covers.length) return sky(covers.reduce((total, v) => total + v, 0) / covers.length);
+  return max(codes.filter(code => code < FALLING));
+}
+
 // `air` is the air-quality answer, or null when it failed. Neither model carries UV, so
 // UV is CAMS's from there; it reaches about five days, and past them a day has no UV
 // rather than a guessed one.
 export function mergeForecast(raw, air = null) {
-  const { icon, ecmwf, seam, blended, ecmwfOnly, switched, dryBelow } = MERGE;
+  const { icon, ecmwf, seam, blended, ecmwfOnly, switched } = MERGE;
   const times = raw.hourly.time;
   const hourly = { time: times };
   const sources = {};
@@ -95,6 +167,10 @@ export function mergeForecast(raw, air = null) {
       ? prefer(a, "icon", b, "ecmwf")
       : prefer(b, "ecmwf", a, "icon")));
   }
+
+  const modelCode = hourly.weather_code;
+  hourly.weather_code = times.map((_, i) => hourCode(modelCode[i], hourly.precipitation[i],
+    hourly.snowfall[i], hourly.cloud_cover[i]));
 
   const uvAt = new Map((air?.hourly?.time ?? []).map((time, i) => [time, air.hourly.uv_index?.[i]]));
   hourly.uv_index = times.map(time => uvAt.get(time) ?? null);
@@ -141,14 +217,7 @@ export function mergeForecast(raw, air = null) {
     const uv = hours.map(i => hourly.uv_index[i]);
     daily.uv_index_max.push(uv.includes(null) ? null : max(uv));
 
-    // The worst hour, as Open-Meteo has it, unless the day stays dry: ICON-EU can paint a
-    // shower that ECMWF's rainfall, the figure printed under the icon, never delivers.
-    const codes = read("weather_code");
-    let code = max(codes);
-    if (code >= FALLING && rain != null && rain < dryBelow) {
-      code = max(codes.filter(c => c < FALLING)) ?? 3;
-    }
-    daily.weather_code.push(code);
+    daily.weather_code.push(dayIcon(hours, hourly, rain));
   }
 
   return { current, hourly, daily, sources };

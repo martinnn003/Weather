@@ -1,6 +1,5 @@
 import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
-import { dayCode } from "../hours.js";
 import { daySources } from "../merge.js";
 import { debugOn } from "../place.js";
 
@@ -32,7 +31,7 @@ export default function Forecast({ data, selectedDay, onSelect }) {
       className="panel enter grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(80px,1fr))]"
     >
       {daily.time.map((date, i) => {
-        const { icon, label } = weatherFor(dayCode(data, i), lang);
+        const { icon, label } = weatherFor(daily.weather_code[i], lang);
         const name = nameFor(i);
         const dayDate = dateFor(i);
         const hi = fmt.temp(daily.temperature_2m_max[i]);

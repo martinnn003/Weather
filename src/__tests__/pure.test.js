@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { I18N, LANGS, pickLang } from "../i18n.js";
 import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
-import { dayCode, hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
+import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
 import { MERGE, daySources, mergeForecast } from "../merge.js";
 import { searchLangFor } from "../api.js";
@@ -144,38 +144,6 @@ describe("hourly strip", () => {
   });
 });
 
-// The second sample day, given codes of its own. Daylight runs from 06:00 to 20:00.
-const dayWith = (dailyCode, codeAt, isDay = sampleData.hourly.is_day) => ({
-  ...sampleData,
-  daily: { ...sampleData.daily, weather_code: [0, dailyCode] },
-  hourly: {
-    ...sampleData.hourly,
-    weather_code: Array.from({ length: 48 }, (_, i) => (i < 24 ? 0 : codeAt(i % 24))),
-    is_day: isDay
-  }
-});
-
-describe("a day's icon", () => {
-  it("is not clouded over by one hour of the night", () => {
-    // Open-Meteo calls this day overcast for the sake of its midnight.
-    expect(dayCode(dayWith(3, hour => (hour === 0 ? 3 : 0)), 1)).toBe(0);
-  });
-
-  it("averages the cloud over the hours of daylight", () => {
-    // Overcast until two, clear after: eight hours of 3 and seven of 0 come to 1.6.
-    expect(dayCode(dayWith(3, hour => (hour < 14 ? 3 : 0)), 1)).toBe(2);
-  });
-
-  it("keeps the worst of the day for rain, even at night", () => {
-    expect(dayCode(dayWith(63, hour => (hour === 3 ? 63 : 0)), 1)).toBe(63);
-  });
-
-  it("keeps the daily code when there is no daylight to average", () => {
-    const polarNight = Array.from({ length: 48 }, () => 0);
-    expect(dayCode(dayWith(2, () => 0, polarNight), 1)).toBe(2);
-  });
-});
-
 // Six days of two models that disagree by exactly 10°, so a blended hour shows how far
 // along the seam it is: ICON-EU says 10°, ECMWF 20°.
 const twoModels = (overrides = {}) => {
@@ -197,6 +165,7 @@ const twoModels = (overrides = {}) => {
       ...both("weather_code", flat(61), flat(0)),
       ...both("wind_speed_10m", flat(30), flat(5)),
       ...both("wind_direction_10m", flat(90), flat(90)),
+      ...both("cloud_cover", flat(10), flat(10)),
       ...overrides
     }
   };
@@ -220,12 +189,6 @@ describe("merging the models", () => {
     expect(hourly.wind_speed_10m[0]).toBe(5);
   });
 
-  it("switches the weather code at the end of the seam, with no halfway", () => {
-    const { hourly } = mergeForecast(twoModels());
-    expect(hourly.weather_code[MERGE.seam.end - 1]).toBe(61);
-    expect(hourly.weather_code[MERGE.seam.end]).toBe(0);
-  });
-
   it("lets either model stand in where the other has nothing", () => {
     const iconGap = Array.from({ length: 144 }, (_, i) => (i === 5 ? null : 10));
     const ecmwfGap = Array.from({ length: 144 }, (_, i) => (i === 130 ? null : 20));
@@ -247,20 +210,6 @@ describe("merging the models", () => {
     expect(daily.precipitation_sum[0]).toBe(2.4); // ECMWF's, not ICON-EU's 24 mm
     expect(daily.wind_speed_10m_max[0]).toBe(5);
     expect(daily.wind_direction_10m_dominant[0]).toBe(90);
-  });
-
-  it("takes the rain out of the icon of a day that stays dry", () => {
-    // ICON-EU's code says rain all day; ECMWF's rainfall, the figure printed, is nothing.
-    const { daily } = mergeForecast(twoModels());
-    expect(daily.precipitation_sum[0]).toBe(0);
-    expect(daily.weather_code[0]).toBe(3);
-  });
-
-  it("keeps the rain in the icon once the day's rainfall reaches the threshold", () => {
-    const { daily } = mergeForecast(twoModels({
-      [`precipitation_${MERGE.ecmwf}`]: Array.from({ length: 144 }, (_, i) => (i === 14 ? MERGE.dryBelow : 0))
-    }));
-    expect(daily.weather_code[0]).toBe(61);
   });
 
   it("reads now off the merged hour it falls in", () => {
@@ -301,6 +250,109 @@ describe("merging the models", () => {
     expect(daySources(data, "temperature_2m", "2026-10-05")).toBe("ICON-EU→IFS");
     expect(daySources(data, "temperature_2m", "2026-10-06")).toBe("IFS");
     expect(daySources(data, "precipitation", "2026-10-01")).toBe("IFS");
+  });
+});
+
+// The six days' hours, from a function of the hour of the day and the day.
+const sixDays = make => Array.from({ length: 144 }, (_, i) => make(i % 24, Math.floor(i / 24)));
+const ecmwfRain = make => ({ [`precipitation_${MERGE.ecmwf}`]: sixDays(make) });
+
+// By default ICON-EU's code has it raining every hour, ECMWF's rainfall is nothing, and
+// the sky is 10% cloud: so unless a test adds rain, every icon below should come out clear.
+describe("building the icons from the merged readings", () => {
+  const icons = overrides => mergeForecast(twoModels(overrides));
+
+  it("shows no 🌦️ over 0 mm, whatever the model's code says", () => {
+    const { hourly, daily } = icons();
+    expect(daily.precipitation_sum[0]).toBe(0);
+    expect(weatherFor(daily.weather_code[0], "bg").icon).toBe(CODES[0].icon);
+    expect(hourly.weather_code.slice(0, 24).every(code => code === 0)).toBe(true);
+  });
+
+  it("shows no ☀️ over 3 mm, whatever the model's code says", () => {
+    // Both models' codes say clear; ECMWF rains a millimetre an hour from 14:00 to 17:00.
+    const { hourly, daily } = icons({
+      [`weather_code_${MERGE.icon}`]: sixDays(() => 0),
+      ...ecmwfRain(h => (h >= 14 && h < 17 ? 1 : 0))
+    });
+    expect(daily.precipitation_sum[0]).toBe(3);
+    expect(weatherFor(daily.weather_code[0], "bg").icon).toBe(CODES[61].icon);
+    expect(hourly.weather_code[15]).toBe(61);
+    expect(hourly.weather_code[12]).toBe(0); // dry before it
+  });
+
+  it("leaves an hour under 0.1 mm dry, and a day under 0.2 mm", () => {
+    // Two hours of 0.05 mm on the first day, two of 0.1 mm on the second.
+    const { hourly, daily } = icons(ecmwfRain((h, d) => (h === 14 || h === 15 ? [0.05, 0.1][d] ?? 0 : 0)));
+    expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([0, 0]);
+    expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([61, 61]);
+  });
+
+  it("grades a day's rain by its heaviest hour", () => {
+    const { daily } = icons(ecmwfRain((h, d) => (h === 14 ? [1, 3, 8][d] ?? 0 : 0)));
+    expect(daily.weather_code.slice(0, 3)).toEqual([61, 63, 65]);
+  });
+
+  it("makes it snow only where ECMWF has snowfall", () => {
+    const { hourly, daily } = icons({
+      ...ecmwfRain(h => (h === 14 ? 1 : 0)),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.7 : 0))
+    });
+    expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([71, 71]);
+    expect(daily.weather_code[1]).toBe(61);
+  });
+
+  it("grades snow by its own depth an hour, not by its water", () => {
+    // The same millimetre of water each day, falling as 1.2, 1.3, 2.5 and 2.6 cm of snow:
+    // either side of 1.3, where light turns moderate, and of 2.5, where moderate turns heavy.
+    const depths = [1.2, 1.3, 2.5, 2.6];
+    const { hourly, daily } = icons({
+      ...ecmwfRain(h => (h === 14 ? 1 : 0)),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (h === 14 ? depths[d] ?? 0 : 0))
+    });
+    expect(daily.weather_code.slice(0, 4)).toEqual([71, 73, 73, 75]);
+    expect([0, 1, 2, 3].map(d => hourly.weather_code[d * 24 + 14])).toEqual([71, 73, 73, 75]);
+  });
+
+  it("keeps the model's storm only where something falls", () => {
+    // ICON-EU calls a thunderstorm at 14:00 every day; only the first day has the rain for one.
+    const { hourly, daily } = icons({
+      [`weather_code_${MERGE.icon}`]: sixDays(h => (h === 14 ? 95 : 0)),
+      ...ecmwfRain((h, d) => (d === 0 && h === 14 ? 2 : 0))
+    });
+    expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([95, 95]);
+    expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([0, 0]);
+  });
+
+  it("asks ICON-EU about storms until the seam ends, and ECMWF after", () => {
+    const { hourly } = icons({
+      [`weather_code_${MERGE.icon}`]: sixDays(() => 95),
+      ...ecmwfRain(() => 1)
+    });
+    expect(hourly.weather_code[MERGE.seam.end - 1]).toBe(95);
+    expect(hourly.weather_code[MERGE.seam.end]).toBe(61);
+  });
+
+  it("reads a dry hour's sky off the cloud cover", () => {
+    const covers = [0, 19, 20, 49, 50, 80, 81, 100];
+    const { hourly } = icons({ [`cloud_cover_${MERGE.icon}`]: sixDays(h => covers[h] ?? 0) });
+    expect(hourly.weather_code.slice(0, 8)).toEqual([0, 0, 1, 1, 2, 2, 3, 3]);
+  });
+
+  it("gives a dry day the sky of its daytime, not of its night", () => {
+    // Overcast all night, clear from 08:00 to 18:00.
+    const { daily } = icons({ [`cloud_cover_${MERGE.icon}`]: sixDays(h => (h >= 8 && h <= 18 ? 0 : 100)) });
+    expect(daily.weather_code[0]).toBe(0);
+  });
+
+  it("keeps the model's fog on a dry hour, and calls a day foggy only if fog held most of it", () => {
+    // Fog until 10:00 on the first day, until 15:00 on the second.
+    const { hourly, daily } = icons({
+      [`weather_code_${MERGE.icon}`]: sixDays((h, d) => (h < ([10, 15][d] ?? 0) ? 45 : 0))
+    });
+    expect(hourly.weather_code[9]).toBe(45);
+    expect(daily.weather_code[0]).toBe(0); // 08:00 and 09:00, two of eleven daytime hours
+    expect(daily.weather_code[1]).toBe(45); // 08:00 to 14:00, seven of eleven
   });
 });
 

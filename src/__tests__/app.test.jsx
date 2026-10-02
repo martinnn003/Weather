@@ -5,6 +5,7 @@ import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 import { HOUR_W, HOUR_GAP } from "../hours.js";
 import { MERGE } from "../merge.js";
+import { CODES } from "../weatherCodes.js";
 
 // A ten-day forecast, generated instead of stored so the fixture stays readable. The
 // run starts on 26 July and rolls over into August, which is why the dates are counted
@@ -35,9 +36,10 @@ const forecast = {
     cloud_cover: each(() => 0),
     cloud_cover_low: each(() => 0),
     wind_gusts_10m: each(() => 41),
-    // The fourth day has a wet afternoon; every other hour is clear.
-    weather_code: each((h, d) => (d === 3 && h >= 12 && h < 18 ? 63 : 0)),
-    precipitation: each(() => 0.05), // 1.2 mm a day
+    // The models' own codes, consulted only for storms and fog; the icons are built from
+    // the rain and the cloud below.
+    weather_code: each(() => 0),
+    precipitation: each(h => (h >= 14 && h < 18 ? 0.3 : 0)), // a wet afternoon, 1.2 mm a day
     // 20% at two in the afternoon and 10% otherwise, so the day's peak is not the hour's.
     precipitation_probability: each(h => (h === 14 ? 20 : 10)),
     visibility: each(() => 24140),
@@ -188,6 +190,30 @@ describe("the app", () => {
       .toBeTruthy();
   });
 
+  it("never puts 🌦️ over 0 mm, or ☀️ over 3 mm", async () => {
+    // The models' codes say the opposite of the rain: rain all through a dry first day,
+    // clear skies over a second that rains a millimetre an hour from 14:00 to 17:00.
+    const contrary = {
+      ...forecast,
+      hourly: {
+        ...forecast.hourly,
+        weather_code: each((h, d) => (d === 0 ? 61 : 0)),
+        precipitation: each((h, d) => (d === 1 && h >= 14 && h < 17 ? 1 : 0))
+      }
+    };
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? answer(contrary)
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
+      .getAllByRole("button");
+    expect(within(tiles[0]).getByText(CODES[0].icon)).toBeTruthy();
+    expect(within(tiles[0]).getByText("💧 0.0 mm")).toBeTruthy();
+    expect(within(tiles[1]).getByText(CODES[61].icon)).toBeTruthy();
+    expect(within(tiles[1]).getByText("💧 3.0 mm")).toBeTruthy();
+  });
+
   it("prints a dry day's nought, and leaves only a missing total blank", async () => {
     // Nought and nothing are different readings: the first says the day stays dry, the
     // second that no one said. Only the second is allowed to leave the tile empty.
@@ -323,7 +349,7 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     expect(screen.queryByText(/^T: /)).toBeNull();
-    expect(screen.getByText(/ICON \(DWD\), IFS \(ECMWF\), CC BY 4\.0/)).toBeTruthy();
+    expect(screen.getByText(/ICON \(DWD\), IFS \(ECMWF\), CAMS \(Copernicus\), CC BY 4\.0/)).toBeTruthy();
   });
 
   it("turns the panel into a day summary when a future day is picked", async () => {

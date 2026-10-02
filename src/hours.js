@@ -31,24 +31,6 @@ export function hoursForDay(data, dayIndex) {
   return rows;
 }
 
-// The code a day is shown by. Open-Meteo's daily code is the worst of all twenty-four
-// hours, and for cloud the worst is only the cloudiest: one overcast hour at midnight
-// labelled a cloudless day overcast. Rain, snow, fog and storms keep that rule — the
-// rainfall under the icon is the whole day's as well — but cloud is averaged over the
-// hours of daylight, which are the hours a day is seen by.
-const CLOUD = [0, 1, 2, 3];
-
-export function dayCode(data, dayIndex) {
-  const code = data.daily.weather_code[dayIndex];
-  if (code > 3) return code;
-  const light = hoursForDay(data, dayIndex)
-    .filter(hour => hour.isDay && CLOUD.includes(hour.code))
-    .map(hour => hour.code);
-  // A polar night has no daylight to average, so the day keeps Open-Meteo's word for it.
-  if (!light.length) return code;
-  return Math.round(light.reduce((sum, c) => sum + c, 0) / light.length);
-}
-
 // One series, so no legend: every value is labelled in the cell below the curve and
 // only the day's high and low get a marker.
 export function sparkGeometry(values, { cellW = HOUR_W, gap = HOUR_GAP, height = SPARK_H } = {}) {
