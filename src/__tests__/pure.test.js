@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { I18N, LANGS, pickLang } from "../i18n.js";
 import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
-import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
+import { dayCode, hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
 import { searchLangFor } from "../api.js";
 
@@ -140,6 +140,38 @@ describe("hourly strip", () => {
     expect(sparkGeometry([5, 9, 7]).markers).toHaveLength(2);
     expect(sparkGeometry([5, 5, 5]).markers).toHaveLength(1); // flat day: one marker
     expect(sparkGeometry([5])).toBeNull();
+  });
+});
+
+// The second sample day, given codes of its own. Daylight runs from 06:00 to 20:00.
+const dayWith = (dailyCode, codeAt, isDay = sampleData.hourly.is_day) => ({
+  ...sampleData,
+  daily: { ...sampleData.daily, weather_code: [0, dailyCode] },
+  hourly: {
+    ...sampleData.hourly,
+    weather_code: Array.from({ length: 48 }, (_, i) => (i < 24 ? 0 : codeAt(i % 24))),
+    is_day: isDay
+  }
+});
+
+describe("a day's icon", () => {
+  it("is not clouded over by one hour of the night", () => {
+    // Open-Meteo calls this day overcast for the sake of its midnight.
+    expect(dayCode(dayWith(3, hour => (hour === 0 ? 3 : 0)), 1)).toBe(0);
+  });
+
+  it("averages the cloud over the hours of daylight", () => {
+    // Overcast until two, clear after: eight hours of 3 and seven of 0 come to 1.6.
+    expect(dayCode(dayWith(3, hour => (hour < 14 ? 3 : 0)), 1)).toBe(2);
+  });
+
+  it("keeps the worst of the day for rain, even at night", () => {
+    expect(dayCode(dayWith(63, hour => (hour === 3 ? 63 : 0)), 1)).toBe(63);
+  });
+
+  it("keeps the daily code when there is no daylight to average", () => {
+    const polarNight = Array.from({ length: 48 }, () => 0);
+    expect(dayCode(dayWith(2, () => 0, polarNight), 1)).toBe(2);
   });
 });
 
