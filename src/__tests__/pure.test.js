@@ -67,22 +67,30 @@ describe("weather codes", () => {
 
 describe("formatting", () => {
   const metric = formatters("c", I18N.bg);
+  const metricEn = formatters("c", I18N.en);
   const imperial = formatters("f", I18N.en);
 
   it("converts temperature and wind", () => {
     expect(metric.temp(25.4)).toBe("25°");
     expect(imperial.temp(25)).toBe("77°");
-    expect(metric.wind(12.3)).toBe("12 km/h");
+    expect(metric.wind(12.3)).toBe("12 км/ч");
     expect(imperial.wind(16.09)).toBe("10 mph");
   });
 
   it("converts pressure, distance and rainfall", () => {
-    expect(metric.pressure(1012.8)).toBe("1013 hPa");
+    expect(metric.pressure(1012.8)).toBe("1013 хПа");
     expect(imperial.pressure(1013)).toBe("29.91 inHg");
-    expect(metric.distance(24140)).toBe("24 km");
+    expect(metric.distance(24140)).toBe("24 км");
     expect(imperial.distance(16090)).toBe("10 mi");
-    expect(metric.rain(2.35)).toBe("2.4 mm");
+    expect(metric.rain(2.35)).toBe("2.4 мм");
     expect(imperial.rain(25.4)).toBe("1.00 in");
+  });
+
+  it("names the metric units in the language's own script", () => {
+    expect([metric.wind(12.3), metric.rain(2.35), metric.distance(24140), metric.pressure(1012.8)])
+      .toEqual(["12 км/ч", "2.4 мм", "24 км", "1013 хПа"]);
+    expect([metricEn.wind(12.3), metricEn.rain(2.35), metricEn.distance(24140), metricEn.pressure(1012.8)])
+      .toEqual(["12 km/h", "2.4 mm", "24 km", "1013 hPa"]);
   });
 
   it("points the wind arrow where the wind blows to", () => {

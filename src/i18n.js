@@ -42,6 +42,9 @@ export const I18N = {
     sunrise: "Sunrise",
     sunset: "Sunset",
     compass: ["N", "NE", "E", "SE", "S", "SW", "W", "NW"],
+    // Metric units in the language's own script; the imperial ones keep their usual form.
+    units: { kmh: "km/h", mm: "mm", km: "km", hPa: "hPa" },
+    footerData: "Weather data:",
     aqi: ["Good", "Fair", "Moderate", "Poor", "Very poor", "Extremely poor"],
     favLabel: "Saved cities",
     favAdd: "Save this city",
@@ -105,6 +108,8 @@ export const I18N = {
     sunrise: "Изгрев",
     sunset: "Залез",
     compass: ["С", "СИ", "И", "ЮИ", "Ю", "ЮЗ", "З", "СЗ"],
+    units: { kmh: "км/ч", mm: "мм", km: "км", hPa: "хПа" },
+    footerData: "Данни за времето:",
     aqi: ["Добро", "Задоволително", "Умерено", "Лошо", "Много лошо", "Изключително лошо"],
     favLabel: "Запазени градове",
     favAdd: "Запази този град",

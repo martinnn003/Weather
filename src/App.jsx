@@ -157,8 +157,9 @@ export default function App() {
       </main>
 
       <footer className="p-6 text-center text-xs opacity-70">
-        {/* The attribution the models' licences ask for, worded the same in every language. */}
-        Weather data:{" "}
+        {/* The attribution the models' licences ask for: the lead-in is translated, the
+            names of the sources and the licence are the same in every language. */}
+        {dict.footerData}{" "}
         <a className="underline" href="https://open-meteo.com/" target="_blank" rel="noopener">Open-Meteo.com</a>
         {" · ICON (DWD), IFS (ECMWF), CAMS (Copernicus), CC BY 4.0"}
       </footer>

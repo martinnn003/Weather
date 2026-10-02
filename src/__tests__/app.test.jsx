@@ -161,9 +161,9 @@ describe("the app", () => {
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // The fixture blows from 132° all ten days: south-east, so the arrow points north-west.
     // The speed is the day's strongest hour, 23:00's.
-    expect(within(forecastPanel).getAllByText("↖ 27 km/h")).toHaveLength(10);
+    expect(within(forecastPanel).getAllByText("↖ 27 км/ч")).toHaveLength(10);
     // The arrow is a glyph a screen reader cannot say, so the label spells the bearing out.
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 km\/h, валежи 1\.2 mm$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 км\/ч, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -175,9 +175,9 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    // Math.round(null) is 0, which would otherwise print a confident "0 km/h".
-    expect(within(forecastPanel).queryByText(/km\/h/)).toBeNull();
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1\.2 mm$/ }))
+    // Math.round(null) is 0, which would otherwise print a confident "0 км/ч".
+    expect(within(forecastPanel).queryByText(/км\/ч/)).toBeNull();
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -185,8 +185,8 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getAllByText("💧 1.2 mm")).toHaveLength(10);
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1\.2 mm$/ }))
+    expect(within(forecastPanel).getAllByText("💧 1.2 мм")).toHaveLength(10);
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -209,9 +209,9 @@ describe("the app", () => {
     const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
       .getAllByRole("button");
     expect(within(tiles[0]).getByText(CODES[0].icon)).toBeTruthy();
-    expect(within(tiles[0]).getByText("💧 0.0 mm")).toBeTruthy();
+    expect(within(tiles[0]).getByText("💧 0.0 мм")).toBeTruthy();
     expect(within(tiles[1]).getByText(CODES[61].icon)).toBeTruthy();
-    expect(within(tiles[1]).getByText("💧 3.0 mm")).toBeTruthy();
+    expect(within(tiles[1]).getByText("💧 3.0 мм")).toBeTruthy();
   });
 
   it("prints a dry day's nought, and leaves only a missing total blank", async () => {
@@ -227,8 +227,8 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getByText("💧 0.0 mm")).toBeTruthy();
-    expect(within(forecastPanel).getAllByText(/mm$/)).toHaveLength(1);
+    expect(within(forecastPanel).getByText("💧 0.0 мм")).toBeTruthy();
+    expect(within(forecastPanel).getAllByText(/мм$/)).toHaveLength(1);
   });
 
   it("shows live readings for today, including wind direction and air quality", async () => {
@@ -236,8 +236,8 @@ describe("the app", () => {
     await screen.findByText("София, България");
     expect(screen.getByText("Вятър · ЮИ ↖")).toBeTruthy();
     expect(screen.getByText("Въздух · Задоволително")).toBeTruthy();
-    expect(screen.getByText("1013 hPa")).toBeTruthy();
-    expect(screen.getByText("24 km")).toBeTruthy();
+    expect(screen.getByText("1013 хПа")).toBeTruthy();
+    expect(screen.getByText("24 км")).toBeTruthy();
   });
 
   it("keeps today's strip whole and fades the hours already gone", async () => {
@@ -258,9 +258,9 @@ describe("the app", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
     const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
     const cellFor = time => within(strip).getByText(time).closest("div[title]");
-    expect(within(cellFor("10:00")).getByText("14 km/h")).toBeTruthy();
-    expect(within(cellFor("15:00")).getByText("19 km/h")).toBeTruthy();
-    expect(cellFor("15:00").title).toContain("19 km/h");
+    expect(within(cellFor("10:00")).getByText("14 км/ч")).toBeTruthy();
+    expect(within(cellFor("15:00")).getByText("19 км/ч")).toBeTruthy();
+    expect(cellFor("15:00").title).toContain("19 км/ч");
   });
 
   it("leaves an hour's wind blank when the forecast has none", async () => {
@@ -273,7 +273,7 @@ describe("the app", () => {
     fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
     const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
     expect(within(strip).getAllByText(/^\d\d:00$/)).toHaveLength(24);
-    expect(within(strip).queryByText(/km\/h/)).toBeNull();
+    expect(within(strip).queryByText(/км\/ч/)).toBeNull();
   });
 
   it("re-aims the strip at the new day instead of keeping the last scroll", async () => {
@@ -349,7 +349,9 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     expect(screen.queryByText(/^T: /)).toBeNull();
-    expect(screen.getByText(/ICON \(DWD\), IFS \(ECMWF\), CAMS \(Copernicus\), CC BY 4\.0/)).toBeTruthy();
+    // Only the footer's own text is matched, so the linked "Open-Meteo.com" falls out of it.
+    expect(screen.getByText(
+      /^Данни за времето: · ICON \(DWD\), IFS \(ECMWF\), CAMS \(Copernicus\), CC BY 4\.0$/)).toBeTruthy();
   });
 
   it("turns the panel into a day summary when a future day is picked", async () => {
@@ -385,6 +387,11 @@ describe("the app", () => {
     expect(screen.getByText("10-Day Weather Forecast")).toBeTruthy();
     expect(screen.getByText("Pressure")).toBeTruthy();
     expect(document.documentElement.lang).toBe("en");
+    // The units and the footer's lead-in go back to English with the rest.
+    expect(screen.getByText("1013 hPa")).toBeTruthy();
+    expect(screen.getByText("24 km")).toBeTruthy();
+    expect(screen.getAllByText("💧 1.2 mm")).toHaveLength(10);
+    expect(screen.getByText(/^Weather data: · ICON/)).toBeTruthy();
   });
 
   it("returns to the home city when the brand is clicked", async () => {
