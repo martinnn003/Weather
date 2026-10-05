@@ -238,14 +238,35 @@ describe("merging the models", () => {
     expect(daily.wind_direction_10m_dominant[0]).toBe(90);
   });
 
-  it("reads now off the merged hour it falls in", () => {
+  it("reads now off the merged hours", () => {
     const { current } = mergeForecast(twoModels({
       [`pressure_msl_${MERGE.icon}`]: Array.from({ length: 144 }, (_, i) => 1000 + i)
     }));
     expect(current.time).toBe("2026-10-01T09:15");
     expect(current.temperature_2m).toBe(10); // ICON-EU's
     expect(current.wind_speed_10m).toBe(5); // ECMWF's
-    expect(current.pressure_msl).toBe(1009);
+    expect(current.pressure_msl).toBe(1009.3); // a quarter of the way from 09:00's to 10:00's
+  });
+
+  it("reads a reading of the moment between its hours, and the preceding hour's as it is", () => {
+    const rising = Array.from({ length: 144 }, (_, i) => 10 + i); // 19 at 09:00, 20 at 10:00
+    const raw = twoModels({
+      [`temperature_2m_${MERGE.icon}`]: rising,
+      [`temperature_2m_${MERGE.ecmwf}`]: rising,
+      [`wind_gusts_10m_${MERGE.icon}`]: rising,
+      [`precipitation_${MERGE.ecmwf}`]: rising
+    });
+    const { current } = mergeForecast(raw);
+    expect(current.temperature_2m).toBe(19.3);
+    expect(current.wind_gusts_10m).toBe(19); // the peak of the hour to 09:00
+    expect(current.precipitation).toBe(19); // the sum of the hour to 09:00
+
+    raw.current.time = "2026-10-01T09:45";
+    expect(mergeForecast(raw).current.temperature_2m).toBe(19.8);
+    raw.current.time = "2026-10-01T09:00";
+    expect(mergeForecast(raw).current.temperature_2m).toBe(19);
+    raw.current.time = "2026-10-06T23:30"; // the last hour, with none after it
+    expect(mergeForecast(raw).current.temperature_2m).toBe(153);
   });
 
   it("finds a day's wind between 350° and 10° at north, not at south", () => {

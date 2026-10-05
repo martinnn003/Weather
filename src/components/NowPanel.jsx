@@ -4,7 +4,7 @@ import { aqiBand, timeStr } from "../format.js";
 
 // Today shows live readings; a selected future day shows that day's aggregates.
 function tilesFor(data, aqi, dayIndex, dict, fmt) {
-  const { current, daily, hourly } = data;
+  const { current, daily } = data;
 
   if (dayIndex > 0) {
     const gusts = daily.wind_gusts_10m_max?.[dayIndex];
@@ -25,8 +25,6 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
     ];
   }
 
-  const nowIndex = Math.max(0, hourly.time.findIndex(time => time.startsWith(current.time.slice(0, 13))));
-  const visibility = hourly.visibility?.[nowIndex];
   // Every tile here is a reading of the moment, so UV and the chance of rain are too: the
   // day's peak, shown bare among them, read as now and put a UV of 5 on a dark evening.
   // The peak still tells the morning how the day will go, so it rides in the label, the
@@ -39,7 +37,7 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
     ["💧", dict.humidity, fmt.percent(current.relative_humidity_2m)],
     ["💨", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
     ["🧭", dict.pressure, fmt.pressure(current.pressure_msl)],
-    ...(visibility == null ? [] : [["👁️", dict.visibility, fmt.distance(visibility)]]),
+    ...(current.visibility == null ? [] : [["👁️", dict.visibility, fmt.distance(current.visibility)]]),
     ...(current.uv_index == null ? [] : [["😎",
       withPeak(dict.uv, uvMax == null ? null : fmt.num(uvMax)), fmt.num(current.uv_index)]]),
     ...(current.precipitation_probability == null ? [] : [["🌧️",

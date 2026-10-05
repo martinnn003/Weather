@@ -20,6 +20,12 @@ export const MERGE = {
   // not shown as it comes; the icons below are built from the merged readings, and the
   // code is consulted only for what those cannot tell, a storm or fog.
   switched: ["weather_code", "visibility", "is_day", "pressure_msl"],
+  // Readings of the moment, which "now" reads between the hour it falls in and the next,
+  // by the minute, as Open-Meteo does wherever no model has 15-minute steps. Gusts, rain
+  // and its chance are the preceding hour's peak or sum, and stay the hour's; so do the
+  // weather code, which has no halfway, and the wind's bearing.
+  instant: ["temperature_2m", "apparent_temperature", "relative_humidity_2m",
+    "cloud_cover", "cloud_cover_low", "wind_speed_10m", "visibility", "pressure_msl"],
   icons: {
     // mm: an hour from this much on, or a day from this much on, shows falling weather.
     wetHour: 0.1,
@@ -84,6 +90,9 @@ const prefer = (value, source, standIn, standInSource) => {
   return [null, null];
 };
 
+// `share` of the way from a to b, to a tenth.
+const lerp = (a, b, share) => Math.round((a + (b - a) * share) * 10) / 10;
+
 const max = values => (values.length ? Math.max(...values) : null);
 const min = values => (values.length ? Math.min(...values) : null);
 // To a tenth, as the tiles print it, so the icon is judged by the number shown under it.
@@ -136,7 +145,7 @@ function dayIcon(hours, hourly, rain) {
 // UV is CAMS's from there; it reaches about five days, and past them a day has no UV
 // rather than a guessed one.
 export function mergeForecast(raw, air = null) {
-  const { icon, ecmwf, seam, blended, ecmwfOnly, switched } = MERGE;
+  const { icon, ecmwf, seam, blended, ecmwfOnly, switched, instant } = MERGE;
   const times = raw.hourly.time;
   const hourly = { time: times };
   const sources = {};
@@ -157,8 +166,7 @@ export function mergeForecast(raw, air = null) {
     merge(name, (a, b, i) => {
       if (i < seam.start || b == null) return prefer(a, "icon", b, "ecmwf");
       if (i >= seam.end || a == null) return prefer(b, "ecmwf", a, "icon");
-      const share = (i - seam.start) / (seam.end - seam.start);
-      return [Math.round((a + (b - a) * share) * 10) / 10, "blend"];
+      return [lerp(a, b, (i - seam.start) / (seam.end - seam.start)), "blend"];
     });
   }
   for (const name of ecmwfOnly) merge(name, (a, b) => prefer(b, "ecmwf", a, "icon"));
@@ -176,12 +184,19 @@ export function mergeForecast(raw, air = null) {
   hourly.uv_index = times.map(time => uvAt.get(time) ?? null);
 
   // With two models, Open-Meteo's own `current` is the first model's alone, so "now" is
-  // read off the merged hour it falls in. Only its clock and is_day are kept: both are
-  // the sun's, not a model's, and to the quarter hour.
+  // read off the merged hours, at the quarter hour of its clock: a reading of the moment
+  // between the hour it falls in and the next, the rest off its hour. Only the clock and
+  // is_day are kept: both are the sun's, not a model's, and to the quarter hour.
   const hour = raw.current.time.slice(0, 13);
   const at = Math.max(0, times.findIndex(time => time.startsWith(hour)));
+  const share = Number(raw.current.time.slice(14, 16)) / 60;
   const current = { time: raw.current.time };
-  for (const name of [...blended, ...ecmwfOnly, ...switched]) current[name] = hourly[name][at];
+  for (const name of [...blended, ...ecmwfOnly, ...switched]) {
+    const [now, next] = [hourly[name][at], hourly[name][at + 1]];
+    current[name] = instant.includes(name) && share && now != null && next != null
+      ? lerp(now, next, share)
+      : now;
+  }
   current.is_day = raw.current.is_day ?? hourly.is_day[at];
   current.uv_index = air?.current?.uv_index ?? null;
 

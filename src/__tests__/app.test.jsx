@@ -29,7 +29,8 @@ const forecast = {
   hourly: {
     time: each((h, d) => `${days[d]}T${String(h).padStart(2, "0")}:00`),
     // From 18° at midnight to 28° at 23:00, a degree warmer each day, so day i runs from
-    // 18+i to 28+i; now, at 18:00 on the first day, it reads 25.8°.
+    // 18+i to 28+i; now, at 18:30 on the first day, is halfway from 18:00's 25.8° to
+    // 19:00's 26.3°, and reads 26.0° (78.8°F).
     temperature_2m: each((h, d) => 18 + d + (h * 10) / 23),
     apparent_temperature: each((h, d) => 19 + d + (h * 10) / 23),
     relative_humidity_2m: each(() => 61),
@@ -375,7 +376,7 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "°F" }));
-    expect(await screen.findByText("78°F")).toBeTruthy();
+    expect(await screen.findByText("79°F")).toBeTruthy();
     expect(screen.getByText("29,91 inHg")).toBeTruthy();
   });
 
@@ -537,7 +538,7 @@ describe("the app", () => {
     history.replaceState(null, "", "/plovidv-bulgaria-728193?lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
-    expect(screen.getByText("78°F")).toBeTruthy();
+    expect(screen.getByText("79°F")).toBeTruthy();
     await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
   });
 
@@ -556,7 +557,7 @@ describe("the app", () => {
     history.replaceState(null, "", "/?lat=42.15&lon=24.75&city=Plovdiv&id=728193&lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
-    expect(screen.getByText("78°F")).toBeTruthy();
+    expect(screen.getByText("79°F")).toBeTruthy();
   });
 
   it("reports a failed load", async () => {

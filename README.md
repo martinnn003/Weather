@@ -110,7 +110,9 @@ The data sources, none of which need an account or a key:
   clear, under 50% mostly clear, up to 80% partly cloudy, overcast above), and a dry
   day the mean cloud cover from 08:00 to 18:00. The models' codes are consulted only
   for storms (when something falls) and fog (when nothing does). The day's figures and the readings for now
-  are worked out from the merged hours. The seam and the lists are one config object,
+  are worked out from the merged hours; a reading of the moment (temperature, feels-like,
+  humidity, wind speed, pressure, visibility) is read for now's quarter hour, between
+  its hour and the next, as Open-Meteo itself does outside the regions with 15-minute models. The seam and the lists are one config object,
   `MERGE`. Add `?debug=1` to the address to see under each day which model its
   temperature (T) and rain (P) came from.
 - `air-quality-api.open-meteo.com/v1/air-quality` — the European AQI and the UV
