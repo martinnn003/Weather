@@ -130,7 +130,7 @@ describe("the app", () => {
     show();
     expect(screen.getByRole("status", { name: "Зареждане на прогнозата" })).toBeTruthy();
     expect(await screen.findByText("София, България")).toBeTruthy();
-    expect(screen.getByText("26°C")).toBeTruthy();
+    expect(screen.getByText("26,0°C")).toBeTruthy();
     expect(screen.getAllByRole("button", { pressed: false }).length).toBeGreaterThan(0);
   });
 
@@ -376,7 +376,7 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "°F" }));
-    expect(await screen.findByText("79°F")).toBeTruthy();
+    expect(await screen.findByText("78,8°F")).toBeTruthy();
     expect(screen.getByText("29,91 inHg")).toBeTruthy();
   });
 
@@ -538,7 +538,7 @@ describe("the app", () => {
     history.replaceState(null, "", "/plovidv-bulgaria-728193?lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
-    expect(screen.getByText("79°F")).toBeTruthy();
+    expect(screen.getByText("78,8°F")).toBeTruthy();
     await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
   });
 
@@ -557,7 +557,7 @@ describe("the app", () => {
     history.replaceState(null, "", "/?lat=42.15&lon=24.75&city=Plovdiv&id=728193&lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
-    expect(screen.getByText("79°F")).toBeTruthy();
+    expect(screen.getByText("78,8°F")).toBeTruthy();
   });
 
   it("reports a failed load", async () => {

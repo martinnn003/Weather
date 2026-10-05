@@ -107,6 +107,9 @@ describe("formatting", () => {
     expect(metricEn.pressure(1013.2)).toBe("1013 hPa"); // not 1,013
     expect(metric.temp(-2.5)).toBe("-2°"); // Math.round's half, as it always was
     expect(metric.temp(-0.3)).toBe("0°"); // not -0°
+    expect(metric.temp(-0.04, 1)).toBe("0,0°"); // nor -0,0°
+    expect([metric.temp(8.66, 1), metric.temp(8, 1), metricEn.temp(5.5, 1)])
+      .toEqual(["8,7°", "8,0°", "5.5°"]); // to a tenth, for the reading for now
     expect(metric.percent(61)).toBe("61%");
     expect(metric.num(4.95)).toBe("5");
   });

@@ -27,7 +27,7 @@ export function formatters(unit, dict) {
     conv,
     num,
     unitLetter: imperial ? "F" : "C",
-    temp: c => `${num(conv(c))}°`,
+    temp: (c, digits = 0) => `${num(conv(c), digits)}°`,
     wind: kmh => (imperial ? `${num(kmh / 1.609)} mph` : `${num(kmh)} ${dict.units.kmh}`),
     pressure: hPa => (imperial ? `${num(hPa * 0.02953, 2)} inHg` : `${num(hPa)} ${dict.units.hPa}`),
     distance: m => (imperial ? `${num(m / 1609)} mi` : `${num(m / 1000)} ${dict.units.km}`),
