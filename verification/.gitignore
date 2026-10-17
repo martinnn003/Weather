@@ -1,0 +1,3 @@
+# Meteostat's station database, 30 MB, downloaded again when a month old
+cache/
+__pycache__/
