@@ -96,11 +96,11 @@ The data sources, none of which need an account or a key:
   coordinates.
 - `geocoding-api.open-meteo.com/v1/get` — looks a known place up by id to get its
   name in another language.
-- `api.open-meteo.com/v1/forecast` — one request for two models, DWD's ICON-EU
-  (`dwd_icon_eu`) and ECMWF's IFS HRES 9 km (`ecmwf_ifs`), with `timezone=auto` and
+- `api.open-meteo.com/v1/forecast` — one request for two models, DWD's ICON Global
+  (`dwd_icon_global`) and ECMWF's IFS HRES 9 km (`ecmwf_ifs`), with `timezone=auto` and
   `forecast_days=10`. `src/merge.js` combines them hour by hour, each reading from the
   model that is stronger for it at that range: temperature, humidity, cloud and gusts
-  are ICON-EU's for the first 96 hours, slide linearly into ECMWF's by hour 120 and are
+  are ICON Global's for the first 96 hours, slide linearly into ECMWF's by hour 120 and are
   ECMWF's after; rain, snowfall and wind are ECMWF's throughout. Where one model has
   no value, the other's is used. The icons are not the models' weather codes but are
   built from the merged readings, so an icon can never contradict the rain printed

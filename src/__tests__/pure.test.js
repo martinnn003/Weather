@@ -4,7 +4,7 @@ import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
-import { MERGE, daySources, mergeForecast } from "../merge.js";
+import { MERGE, daySources, forecastQuery, mergeForecast } from "../merge.js";
 import { searchLangFor } from "../api.js";
 
 describe("translations", () => {
@@ -174,7 +174,7 @@ describe("hourly strip", () => {
 });
 
 // Six days of two models that disagree by exactly 10°, so a blended hour shows how far
-// along the seam it is: ICON-EU says 10°, ECMWF 20°.
+// along the seam it is: ICON Global says 10°, ECMWF 20°.
 const twoModels = (overrides = {}) => {
   const hours = 6 * 24;
   const dates = Array.from({ length: 6 }, (_, d) => `2026-10-0${d + 1}`);
@@ -201,7 +201,7 @@ const twoModels = (overrides = {}) => {
 };
 
 describe("merging the models", () => {
-  it("keeps ICON-EU before the seam, ECMWF after it, and slides between them", () => {
+  it("keeps ICON Global before the seam, ECMWF after it, and slides between them", () => {
     const { hourly, sources } = mergeForecast(twoModels());
     const { start, end } = MERGE.seam;
     expect(hourly.temperature_2m[0]).toBe(10);
@@ -230,13 +230,25 @@ describe("merging the models", () => {
     expect(daily.sunrise[5]).toBe("2026-10-06T07:10"); // ECMWF's is missing
   });
 
+  it("asks Open-Meteo for ICON Global and ECMWF", () => {
+    expect(forecastQuery()).toContain("&models=dwd_icon_global,ecmwf_ifs");
+  });
+
+  it("takes visibility from ECMWF before the seam too, since ICON Global has none", () => {
+    const { hourly, sources, current } = mergeForecast(twoModels({
+      [`visibility_${MERGE.ecmwf}`]: Array.from({ length: 144 }, () => 24000)
+    }));
+    expect([hourly.visibility[0], sources.visibility[0]]).toEqual([24000, "ecmwf"]);
+    expect(current.visibility).toBe(24000);
+  });
+
   it("works the day out from the merged hours, not from either model's day", () => {
     const { daily } = mergeForecast(twoModels({
       [`precipitation_${MERGE.ecmwf}`]: Array.from({ length: 144 }, (_, i) => (i < 24 ? 0.1 : 0))
     }));
     expect(daily.temperature_2m_max[0]).toBe(10);
     expect(daily.temperature_2m_max[5]).toBe(20);
-    expect(daily.precipitation_sum[0]).toBe(2.4); // ECMWF's, not ICON-EU's 24 mm
+    expect(daily.precipitation_sum[0]).toBe(2.4); // ECMWF's, not ICON Global's 24 mm
     expect(daily.wind_speed_10m_max[0]).toBe(5);
     expect(daily.wind_direction_10m_dominant[0]).toBe(90);
   });
@@ -246,7 +258,7 @@ describe("merging the models", () => {
       [`pressure_msl_${MERGE.icon}`]: Array.from({ length: 144 }, (_, i) => 1000 + i)
     }));
     expect(current.time).toBe("2026-10-01T09:15");
-    expect(current.temperature_2m).toBe(10); // ICON-EU's
+    expect(current.temperature_2m).toBe(10); // ICON Global's
     expect(current.wind_speed_10m).toBe(5); // ECMWF's
     expect(current.pressure_msl).toBe(1009.3); // a quarter of the way from 09:00's to 10:00's
   });
@@ -296,8 +308,8 @@ describe("merging the models", () => {
 
   it("names a day's models for ?debug=1", () => {
     const data = mergeForecast(twoModels());
-    expect(daySources(data, "temperature_2m", "2026-10-01")).toBe("ICON-EU");
-    expect(daySources(data, "temperature_2m", "2026-10-05")).toBe("ICON-EU→IFS");
+    expect(daySources(data, "temperature_2m", "2026-10-01")).toBe("ICON Global");
+    expect(daySources(data, "temperature_2m", "2026-10-05")).toBe("ICON Global→IFS");
     expect(daySources(data, "temperature_2m", "2026-10-06")).toBe("IFS");
     expect(daySources(data, "precipitation", "2026-10-01")).toBe("IFS");
   });
@@ -307,7 +319,7 @@ describe("merging the models", () => {
 const sixDays = make => Array.from({ length: 144 }, (_, i) => make(i % 24, Math.floor(i / 24)));
 const ecmwfRain = make => ({ [`precipitation_${MERGE.ecmwf}`]: sixDays(make) });
 
-// By default ICON-EU's code has it raining every hour, ECMWF's rainfall is nothing, and
+// By default ICON Global's code has it raining every hour, ECMWF's rainfall is nothing, and
 // the sky is 10% cloud: so unless a test adds rain, every icon below should come out clear.
 describe("building the icons from the merged readings", () => {
   const icons = overrides => mergeForecast(twoModels(overrides));
@@ -365,7 +377,7 @@ describe("building the icons from the merged readings", () => {
   });
 
   it("keeps the model's storm only where something falls", () => {
-    // ICON-EU calls a thunderstorm at 14:00 every day; only the first day has the rain for one.
+    // ICON Global calls a thunderstorm at 14:00 every day; only the first day has the rain for one.
     const { hourly, daily } = icons({
       [`weather_code_${MERGE.icon}`]: sixDays(h => (h === 14 ? 95 : 0)),
       ...ecmwfRain((h, d) => (d === 0 && h === 14 ? 2 : 0))
@@ -374,7 +386,7 @@ describe("building the icons from the merged readings", () => {
     expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([0, 0]);
   });
 
-  it("asks ICON-EU about storms until the seam ends, and ECMWF after", () => {
+  it("asks ICON Global about storms until the seam ends, and ECMWF after", () => {
     const { hourly } = icons({
       [`weather_code_${MERGE.icon}`]: sixDays(() => 95),
       ...ecmwfRain(() => 1)

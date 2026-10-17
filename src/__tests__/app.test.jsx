@@ -336,10 +336,10 @@ describe("the app", () => {
     await screen.findByText("София, България");
     const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
       .getAllByRole("button");
-    // ICON-EU for four days, the slide into ECMWF on the fifth, ECMWF after; the rain is
+    // ICON Global for four days, the slide into ECMWF on the fifth, ECMWF after; the rain is
     // ECMWF's throughout.
-    expect(within(tiles[0]).getByText("T: ICON-EU")).toBeTruthy();
-    expect(within(tiles[4]).getByText("T: ICON-EU→IFS")).toBeTruthy();
+    expect(within(tiles[0]).getByText("T: ICON Global")).toBeTruthy();
+    expect(within(tiles[4]).getByText("T: ICON Global→IFS")).toBeTruthy();
     expect(within(tiles[9]).getByText("T: IFS")).toBeTruthy();
     expect(within(tiles[0]).getByText("P: IFS")).toBeTruthy();
     // Home rewrites the address to its bare self, and must not drop the flag doing it.

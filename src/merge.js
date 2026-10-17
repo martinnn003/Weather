@@ -4,10 +4,10 @@
 // each model's id; nothing outside this module ever sees those names.
 export const MERGE = {
   // The ids as Open-Meteo's documentation spells them.
-  icon: "dwd_icon_eu", // DWD ICON-EU: 7 km, five days
+  icon: "dwd_icon_global", // DWD ICON Global: 11 km, seven and a half days, no visibility
   ecmwf: "ecmwf_ifs", // ECMWF IFS HRES: 9 km, fifteen days
   // The seam, in hours from the start of the series, which is 00:00 today, local time.
-  // The blended readings are ICON-EU's before `start` and ECMWF's from `end`, and slide
+  // The blended readings are ICON Global's before `start` and ECMWF's from `end`, and slide
   // from one to the other in between, so no curve takes a step where the models meet.
   seam: { start: 96, end: 120 },
   blended: ["temperature_2m", "apparent_temperature", "relative_humidity_2m",
@@ -15,7 +15,7 @@ export const MERGE = {
   // ECMWF's for all ten days. The chance of rain goes with the rain it is a chance of.
   ecmwfOnly: ["precipitation", "snowfall", "wind_speed_10m", "wind_direction_10m",
     "precipitation_probability"],
-  // ICON-EU's until the seam ends, ECMWF's after it: a category has no halfway, and the
+  // ICON Global's until the seam ends, ECMWF's after it: a category has no halfway, and the
   // rest are only ever read for the hour that is now. The models' own weather code is
   // not shown as it comes; the icons below are built from the merged readings, and the
   // code is consulted only for what those cannot tell, a storm or fog.
@@ -40,7 +40,7 @@ export const MERGE = {
     daytime: [8, 18]
   },
   // How ?debug=1 names a reading's origin.
-  labels: { icon: "ICON-EU", ecmwf: "IFS", blend: "ICON-EU→IFS" }
+  labels: { icon: "ICON Global", ecmwf: "IFS", blend: "ICON Global→IFS" }
 };
 
 // WMO codes from here up all fall from the sky: drizzle, rain, snow, showers, storms.
@@ -239,7 +239,7 @@ export function mergeForecast(raw, air = null) {
 }
 
 // For ?debug=1: which model a day's readings of `name` came from, as "IFS" or, on a day
-// that mixes, "ICON-EU + IFS".
+// that mixes, "ICON Global + IFS".
 export function daySources(data, name, date) {
   const found = new Set();
   data.hourly.time.forEach((time, i) => {
