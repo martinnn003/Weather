@@ -5,19 +5,32 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     color: #fff;
     min-height: 100vh;
-    background: linear-gradient(160deg, #38bdf8 0%, #0ea5e9 50%, #0369a1 100%);
-    background-attachment: fixed;
-    transition: background 0.6s ease;
+    background-color: var(--sky-top); /* what an overscroll shows past the sky */
   }
 
-  /* Backgrounds by weather group; `night` is defined last so it wins. */
-  body.weather-clear  { background: linear-gradient(160deg, #38bdf8, #0ea5e9, #0369a1); background-attachment: fixed; }
-  body.weather-clouds { background: linear-gradient(160deg, #7c93a8, #556677, #37424e); background-attachment: fixed; }
-  body.weather-rain   { background: linear-gradient(160deg, #5b6b7d, #3c4a59, #232f3b); background-attachment: fixed; }
-  body.weather-fog    { background: linear-gradient(160deg, #9aa8b5, #6b7885, #4a555f); background-attachment: fixed; }
-  body.weather-snow   { background: linear-gradient(160deg, #60a5fa, #3b82f6, #1d4ed8); background-attachment: fixed; }
-  body.weather-storm  { background: linear-gradient(160deg, #414e60, #2a3340, #12181f); background-attachment: fixed; }
-  body.night          { background: linear-gradient(160deg, #1e293b, #0f172a, #020617); background-attachment: fixed; }
+  /* The sky is a layer of its own, fixed to the screen: iOS Safari ignores
+     background-attachment: fixed, and a gradient on the body would stretch down the
+     whole page there. */
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    background: linear-gradient(160deg, var(--sky-top), var(--sky-mid), var(--sky-bottom));
+  }
+
+  /* The sky by weather group, top to bottom, a clear day's until the forecast arrives;
+     `night` is defined last so it wins. Every stop keeps white text at 4.5:1 or more on
+     a panel (white at 10% over it), the WCAG AA bar for body text. The top stop also
+     tints the phone's browser bar. */
+  body,
+  body.weather-clear  { --sky-top: #006cac; --sky-mid: #005d99; --sky-bottom: #0a4a7a; }
+  body.weather-clouds { --sky-top: #53687c; --sky-mid: #445567; --sky-bottom: #343f4b; }
+  body.weather-rain   { --sky-top: #46535f; --sky-mid: #36424e; --sky-bottom: #232f3b; }
+  body.weather-fog    { --sky-top: #65656d; --sky-mid: #55565d; --sky-bottom: #44454b; }
+  body.weather-snow   { --sky-top: #2168b7; --sky-mid: #1d55a6; --sky-bottom: #1e4290; }
+  body.weather-storm  { --sky-top: #353f4d; --sky-mid: #242c37; --sky-bottom: #12181f; }
+  body.night          { --sky-top: #1e293b; --sky-mid: #0f172a; --sky-bottom: #020617; }
 
   button:focus-visible,
   input:focus-visible,
@@ -100,6 +113,5 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  body { transition: none; }
   .skeleton-block, .enter { animation: none; }
 }

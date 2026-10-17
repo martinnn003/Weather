@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 import { HOUR_W, HOUR_GAP } from "../hours.js";
@@ -123,6 +123,8 @@ afterEach(() => {
   cleanup();
   vi.clearAllMocks();
   vi.unstubAllGlobals();
+  vi.useRealTimers();
+  delete document.visibilityState; // back to jsdom's own, if a test stood one in
 });
 
 describe("the app", () => {
@@ -567,5 +569,49 @@ describe("the app", () => {
     show();
     expect(await screen.findByRole("alert")).toHaveProperty(
       "textContent", "Данните за времето не можаха да се заредят. Опитай отново по-късно.");
+  });
+
+  it("asks again a minute past every quarter hour while in view, and on coming back", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout", "Date"] });
+    vi.setSystemTime(new Date(2026, 6, 26, 18, 10));
+    const asked = () => fetchStub.mock.calls.filter(([url]) => url.includes("/v1/forecast")).length;
+    show();
+    await screen.findByText("София, България");
+    expect(asked()).toBe(1);
+    await act(() => vi.advanceTimersByTimeAsync(5 * 60 * 1000)); // 18:15, Open-Meteo still turning over
+    expect(asked()).toBe(1);
+    await act(() => vi.advanceTimersByTimeAsync(60 * 1000)); // 18:16
+    expect(asked()).toBe(2);
+
+    // Out of view past 18:31 the page asks nothing, and catches up when it is back.
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "hidden" });
+    await act(() => vi.advanceTimersByTimeAsync(20 * 60 * 1000)); // 18:36
+    expect(asked()).toBe(2);
+    Object.defineProperty(document, "visibilityState", { configurable: true, value: "visible" });
+    act(() => { document.dispatchEvent(new Event("visibilitychange")); });
+    await waitFor(() => expect(asked()).toBe(3));
+  });
+
+  it("tints the phone's browser bar with the top of the sky, by night as well", async () => {
+    // The sky's colours are the stylesheet's, which the tests do not load; these stand in.
+    const sheet = document.createElement("style");
+    sheet.textContent = "body.weather-clear { --sky-top: #006cac } body.night { --sky-top: #1e293b }";
+    const bar = Object.assign(document.createElement("meta"), { name: "theme-color" });
+    document.head.append(sheet, bar);
+    try {
+      show();
+      await screen.findByText("София, България");
+      expect(bar.content).toBe("#006cac");
+
+      cleanup();
+      fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+        ? answer({ ...forecast, current: { ...forecast.current, is_day: 0 } })
+        : defaultFetch(url)));
+      show();
+      await waitFor(() => expect(bar.content).toBe("#1e293b"));
+    } finally {
+      sheet.remove();
+      bar.remove();
+    }
   });
 });

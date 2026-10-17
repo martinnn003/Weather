@@ -61,6 +61,10 @@ export default function App() {
     if (!data) return;
     const night = data.current.is_day === 1 ? "" : " night";
     document.body.className = `weather-${groupFor(data.current.weather_code)}${night}`;
+    // The phone's browser bar takes the top of the new sky, so a night page is not
+    // crowned with a day's blue.
+    const top = getComputedStyle(document.body).getPropertyValue("--sky-top").trim();
+    if (top) document.querySelector('meta[name="theme-color"]')?.setAttribute("content", top);
   }, [data]);
 
   useEffect(() => {
