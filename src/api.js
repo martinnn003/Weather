@@ -9,17 +9,37 @@ const FORECAST = `${forecastQuery()}&daily=sunrise,sunset&current=is_day&timezon
 // It reaches about five days; seven are asked for so that none of them is cut short.
 const AIR = "&current=european_aqi,uv_index&hourly=uv_index&timezone=auto&forecast_days=7";
 
-const json = async res => {
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-};
+// Open-Meteo answers 503 when it is overloaded and 429 when asked too often, a gateway
+// in front of it 502 or 504, and a phone drops its connection now and then. Each passes
+// in a second or two, so such a failure is asked again twice, after one second and then
+// three, before it counts. Anything else — a 404, a 500 — would only fail again.
+const RETRY_AFTER = [1000, 3000];
+const PASSING = new Set([429, 502, 503, 504]);
+
+const wait = ms => new Promise(resolve => setTimeout(resolve, ms));
+
+async function getJson(url) {
+  for (const delay of [...RETRY_AFTER, null]) {
+    let res;
+    try {
+      res = await fetch(url);
+    } catch (error) {
+      if (delay == null) throw error;
+      await wait(delay);
+      continue;
+    }
+    if (res.ok) return res.json();
+    if (delay == null || !PASSING.has(res.status)) throw new Error(`HTTP ${res.status}`);
+    await wait(delay);
+  }
+}
 
 // The forecast is required; air quality is a bonus that must never break it.
 export async function fetchWeather(lat, lon) {
   const [weather, air] = await Promise.allSettled([
-    fetch(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${FORECAST}`).then(json),
-    fetch("https://air-quality-api.open-meteo.com/v1/air-quality" +
-      `?latitude=${lat}&longitude=${lon}${AIR}`).then(json)
+    getJson(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${FORECAST}`),
+    getJson("https://air-quality-api.open-meteo.com/v1/air-quality" +
+      `?latitude=${lat}&longitude=${lon}${AIR}`)
   ]);
   if (weather.status === "rejected") throw weather.reason;
   const airValue = air.status === "fulfilled" ? air.value : null;
@@ -39,15 +59,15 @@ export const searchLangFor = (query, lang) => (CYRILLIC.test(query) ? "bg" : lan
 
 // Open-Meteo localises place names via `language`.
 export async function searchCities(query, lang) {
-  const { results } = await fetch("https://geocoding-api.open-meteo.com/v1/search" +
-    `?name=${encodeURIComponent(query)}&count=6&language=${searchLangFor(query, lang)}`).then(json);
+  const { results } = await getJson("https://geocoding-api.open-meteo.com/v1/search" +
+    `?name=${encodeURIComponent(query)}&count=6&language=${searchLangFor(query, lang)}`);
   return results ?? [];
 }
 
 // Looks a known place up by id — the same record a search returns, which is what
 // makes an id enough on its own: it carries the coordinates as well as the name.
 export async function fetchPlace(id, lang) {
-  return fetch(`https://geocoding-api.open-meteo.com/v1/get?id=${id}&language=${lang}`).then(json);
+  return getJson(`https://geocoding-api.open-meteo.com/v1/get?id=${id}&language=${lang}`);
 }
 
 // The same lookup, when only the name in another language is wanted.
@@ -57,7 +77,7 @@ export async function fetchPlaceName(id, lang) {
 }
 
 export async function fetchRadarFrame() {
-  const index = await fetch("https://api.rainviewer.com/public/weather-maps.json").then(json);
+  const index = await getJson("https://api.rainviewer.com/public/weather-maps.json");
   const frame = index.radar?.past?.at(-1);
   if (!frame) throw new Error("No radar frame available");
   return { url: `${index.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, time: frame.time * 1000 };

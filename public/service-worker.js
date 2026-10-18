@@ -1,7 +1,7 @@
 // Bump this version whenever the caching rules change to invalidate old caches.
 // Build output is content-hashed, so the asset list no longer lives here — files
 // are cached as they are requested.
-const CACHE = "weather-v7";
+const CACHE = "weather-v8";
 const PRECACHE = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", event => {
@@ -20,7 +20,11 @@ self.addEventListener("activate", event => {
   );
 });
 
+// Only a good answer is kept. An error stored here would take the place of the last
+// forecast that worked — the very one offline is meant to fall back on — and a failed
+// asset, served cache-first, would never be asked for again.
 const cacheCopy = (request, response) => {
+  if (!response.ok) return response;
   const copy = response.clone();
   caches.open(CACHE).then(cache => cache.put(request, copy));
   return response;
@@ -33,7 +37,8 @@ self.addEventListener("fetch", event => {
   const url = new URL(request.url);
 
   // Weather, geocoding and air quality: network-first, falling back to the last
-  // response so the app still shows something when offline.
+  // response so the app still shows something when offline. An error from a server
+  // that did answer is passed on as it is, so the page can ask again.
   if (url.hostname.endsWith("open-meteo.com")) {
     event.respondWith(
       fetch(request)

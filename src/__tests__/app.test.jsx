@@ -568,7 +568,76 @@ describe("the app", () => {
       : respond({ current: {} })));
     show();
     expect(await screen.findByRole("alert")).toHaveProperty(
-      "textContent", "Данните за времето не можаха да се заредят. Опитай отново по-късно.");
+      "textContent", "Данните за времето не можаха да се заредят.");
+  });
+
+  const forecastAsked = () => fetchStub.mock.calls.filter(([url]) => url.includes("/v1/forecast")).length;
+
+  it("rides out an overloaded server and a dropped connection without a word", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout"] });
+    const failures = [
+      () => Promise.resolve({ ok: false, status: 503 }),
+      () => Promise.reject(new TypeError("Failed to fetch"))
+    ];
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast") && failures.length
+      ? failures.shift()()
+      : defaultFetch(url)));
+    show();
+    await act(() => vi.advanceTimersByTimeAsync(1000)); // the first try again
+    expect(forecastAsked()).toBe(2);
+    await act(() => vi.advanceTimersByTimeAsync(3000)); // and the second
+    expect(await screen.findByText("София, България")).toBeTruthy();
+    expect(forecastAsked()).toBe(3);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
+  it("gives up after the third try, and asks only once for an error that would not pass", async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout"] });
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? Promise.resolve({ ok: false, status: 503 })
+      : defaultFetch(url)));
+    show();
+    await act(() => vi.advanceTimersByTimeAsync(4000));
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(forecastAsked()).toBe(3);
+
+    cleanup();
+    fetchStub.mockClear();
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? Promise.resolve({ ok: false, status: 500 })
+      : defaultFetch(url)));
+    show();
+    expect(await screen.findByRole("alert")).toBeTruthy();
+    expect(forecastAsked()).toBe(1);
+  });
+
+  it("asks again from the button beside a failed load", async () => {
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? Promise.resolve({ ok: false, status: 500 })
+      : defaultFetch(url)));
+    show();
+    await screen.findByRole("alert");
+
+    fetchStub.mockImplementation(defaultFetch);
+    fireEvent.click(screen.getByRole("button", { name: "Опитай отново" }));
+    expect(await screen.findByText("София, България")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Опитай отново" })).toBeNull();
+  });
+
+  it("asks again when the brand is clicked at home, so a failed home page is not stuck", async () => {
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? Promise.resolve({ ok: false, status: 500 })
+      : defaultFetch(url)));
+    show();
+    await screen.findByRole("alert");
+    fireEvent.click(screen.getByRole("link", { name: "MeteoDita — начало" }));
+    await waitFor(() => expect(forecastAsked()).toBe(2));
+
+    fetchStub.mockImplementation(defaultFetch);
+    fireEvent.click(screen.getByRole("link", { name: "MeteoDita — начало" }));
+    expect(await screen.findByText("София, България")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull();
   });
 
   it("asks again a minute past every quarter hour while in view, and on coming back", async () => {

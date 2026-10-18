@@ -27,7 +27,7 @@ export default function App() {
   const [toast, setToast] = useState(null);
   const [geoError, setGeoError] = useState(null);
 
-  const { data, aqi, error, loading } = useWeather(place);
+  const { data, aqi, error, loading, reload } = useWeather(place);
   const { favorites, toggle, remove } = useFavorites();
 
   // A place found by search carries an id, so its name can follow the language.
@@ -93,12 +93,16 @@ export default function App() {
   // Home is the page the app opens on, not the last city looked at — that one is in
   // storage already, so returning to it would leave the brand looking like dead text.
   // Asking the browser for a position instead would put a permission prompt behind a
-  // logo, which is not what a logo is for; the 📍 button is there for that.
+  // logo, which is not what a logo is for; the 📍 button is there for that. Already at
+  // home, the forecast is asked for again: setting the same place changes nothing, so a
+  // home page that failed to load would otherwise stay empty under a logo that looks dead.
   const goHome = useCallback(() => {
-    setPlace(DEFAULT_PLACE);
+    if (place === DEFAULT_PLACE) reload();
+    else setPlace(DEFAULT_PLACE);
+    setSelectedDay(null);
     setRadarOpen(false);
     setGeoError(null);
-  }, []);
+  }, [place, reload]);
 
   const share = useCallback(async () => {
     try {
@@ -130,7 +134,20 @@ export default function App() {
         px-4 py-5 sm:px-6 sm:py-8">
         <FavoritesBar favorites={favorites} current={place} onGo={setPlace} onRemove={remove} />
 
-        {message && <p role="alert" className="text-center text-red-100">{message}</p>}
+        {message && (
+          <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-2 text-center">
+            <p role="alert" className="text-red-100">{message}</p>
+            {/* A failed load can be asked again; a refused location is the browser's to change. */}
+            {!geoError && (
+              <button type="button" onClick={reload}
+                className="rounded-xl border border-white/25 bg-white/15 px-3 py-1.5 text-sm
+                  transition-colors hover:bg-white/30 focus-visible:outline focus-visible:outline-2
+                  focus-visible:outline-offset-2 focus-visible:outline-white/70">
+                {dict.retry}
+              </button>
+            )}
+          </div>
+        )}
 
         {!data && loading && <Skeleton />}
 
