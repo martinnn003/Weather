@@ -16,10 +16,11 @@ export const MERGE = {
   ecmwfOnly: ["precipitation", "snowfall", "wind_speed_10m", "wind_direction_10m",
     "precipitation_probability"],
   // ICON Global's until the seam ends, ECMWF's after it: a category has no halfway, and the
-  // rest are only ever read for the hour that is now. The models' own weather code is
-  // not shown as it comes; the icons below are built from the merged readings, and the
-  // code is consulted only for what those cannot tell, a storm or fog.
-  switched: ["weather_code", "visibility", "is_day", "pressure_msl"],
+  // rest are only ever read for the hour that is now — all but CAPE, which goes with the
+  // code, so a storm is weighed by the instability of the model that called it. The
+  // models' own weather code is not shown as it comes; the icons below are built from the
+  // merged readings, and the code is consulted only for what those cannot tell, a storm or fog.
+  switched: ["weather_code", "cape", "visibility", "is_day", "pressure_msl"],
   // Readings of the moment, which "now" reads between the hour it falls in and the next,
   // by the minute, as Open-Meteo does wherever no model has 15-minute steps. Gusts, rain
   // and its chance are the preceding hour's peak or sum, and stay the hour's; so do the
@@ -37,7 +38,13 @@ export const MERGE = {
     // Snow by its depth, cm an hour: light under 1.3, moderate up to 2.5, heavy above it.
     snowRates: [1.3, 2.5],
     // Local hours, both included, whose mean cloud cover is a dry day's sky.
-    daytime: [8, 18]
+    daytime: [8, 18],
+    // J/kg of CAPE, from which a model's storm is believed. ICON Global calls thunder in
+    // air with next to none: its forecast for 23 October 2026 had one at midnight at
+    // 10 J/kg, and that one hour made the whole day a storm. A year of its forecasts for
+    // Sofia (October 2025 on) had nine storm days; below 100 fell November's, January's and
+    // one of May's two, and all of summer's stood.
+    stormCape: 100
   },
   // How ?debug=1 names a reading's origin.
   labels: { icon: "ICON Global", ecmwf: "IFS", blend: "ICON Global→IFS" }
@@ -75,10 +82,14 @@ const falling = (rain, snow, cover) => {
 // One hour's icon. Whether anything falls is the merged rain's to say, so an icon can no
 // longer rain over a dry hour or shine over a wet one; snow is ECMWF's snowfall, and the
 // sky, dry or wet, is the merged cloud cover. The model's code is kept only where the
-// readings are silent: a storm, if something is falling, and fog, if nothing is.
-function hourCode(model, rain, snow, cover) {
+// readings are silent: a storm, if something is falling and the air has the CAPE for one
+// (or no CAPE came to judge by), and fog, if nothing is falling.
+function hourCode(model, rain, snow, cover, cape) {
   if (rain == null) return model; // nothing to hold the model to
-  if (rain >= MERGE.icons.wetHour) return isStorm(model) ? model : falling(rain, snow, cover);
+  if (rain >= MERGE.icons.wetHour) {
+    const storm = isStorm(model) && (cape == null || cape >= MERGE.icons.stormCape);
+    return storm ? model : falling(rain, snow, cover);
+  }
   if (isFog(model)) return model;
   if (cover != null) return sky(cover);
   return model != null && model < FALLING ? model : null;
@@ -186,7 +197,7 @@ export function mergeForecast(raw, air = null) {
 
   const modelCode = hourly.weather_code;
   hourly.weather_code = times.map((_, i) => hourCode(modelCode[i], hourly.precipitation[i],
-    hourly.snowfall[i], hourly.cloud_cover[i]));
+    hourly.snowfall[i], hourly.cloud_cover[i], hourly.cape[i]));
 
   const uvAt = new Map((air?.hourly?.time ?? []).map((time, i) => [time, air.hourly.uv_index?.[i]]));
   hourly.uv_index = times.map(time => uvAt.get(time) ?? null);

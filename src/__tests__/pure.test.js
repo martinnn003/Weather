@@ -418,6 +418,28 @@ describe("building the icons from the merged readings", () => {
     expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([0, 0]);
   });
 
+  it("believes a storm only where the air has the CAPE for one", () => {
+    // ICON Global calls a thunderstorm in a wet 14:00 every day; its CAPE then is 99 on the
+    // first day, 100 on the second, and missing on the third.
+    const { hourly, daily } = icons({
+      [`weather_code_${MERGE.icon}`]: sixDays(h => (h === 14 ? 95 : 0)),
+      [`cape_${MERGE.icon}`]: sixDays((h, d) => [99, 100][d] ?? null),
+      ...ecmwfRain(h => (h === 14 ? 2 : 0))
+    });
+    expect([0, 1, 2].map(d => hourly.weather_code[d * 24 + 14])).toEqual([80, 95, 95]);
+    expect(daily.weather_code.slice(0, 3)).toEqual([80, 95, 95]);
+
+    // The CAPE that judges is the calling model's: ECMWF's, once the seam has ended.
+    const { hourly: late } = icons({
+      ...Object.fromEntries([MERGE.icon, MERGE.ecmwf].map(m => [`weather_code_${m}`, sixDays(() => 95)])),
+      [`cape_${MERGE.icon}`]: sixDays(() => 500),
+      [`cape_${MERGE.ecmwf}`]: sixDays(() => 50),
+      ...ecmwfRain(() => 1)
+    });
+    expect([late.weather_code[MERGE.seam.end - 1], late.weather_code[MERGE.seam.end]])
+      .toEqual([95, 80]);
+  });
+
   it("asks ICON Global about storms until the seam ends, and ECMWF after", () => {
     const { hourly } = icons({
       [`weather_code_${MERGE.icon}`]: sixDays(() => 95),
