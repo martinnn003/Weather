@@ -3,12 +3,14 @@ import Navbar from "./components/Navbar.jsx";
 import NowPanel from "./components/NowPanel.jsx";
 import Forecast from "./components/Forecast.jsx";
 import HourlyStrip from "./components/HourlyStrip.jsx";
+import HourlyList from "./components/HourlyList.jsx";
 import FavoritesBar from "./components/FavoritesBar.jsx";
 import Skeleton from "./components/Skeleton.jsx";
 import { useSettings } from "./settings.jsx";
 import { useWeather } from "./hooks/useWeather.js";
 import { useGeoName } from "./hooks/useGeoName.js";
 import { useFavorites } from "./hooks/useFavorites.js";
+import { useMediaQuery } from "./hooks/useMediaQuery.js";
 import { groupFor } from "./weatherCodes.js";
 import { fetchPlace } from "./api.js";
 import {
@@ -29,6 +31,9 @@ export default function App() {
 
   const { data, aqi, error, loading, reload } = useWeather(place);
   const { favorites, toggle, remove } = useFavorites();
+  // Tailwind's sm. Below it the days are a list, ten rows long, and a picked day's hours
+  // open under that day instead of under the whole list, off the bottom of the screen.
+  const wide = useMediaQuery("(min-width: 40rem)", true);
 
   // A place found by search carries an id, so its name can follow the language.
   const geoName = useGeoName(place.geoId, lang, place.label);
@@ -166,8 +171,10 @@ export default function App() {
               data={data}
               selectedDay={selectedDay}
               onSelect={day => setSelectedDay(current => (current === day ? null : day))}
+              detail={!wide && selectedDay !== null &&
+                <HourlyList data={data} dayIndex={selectedDay} />}
             />
-            {selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
+            {wide && selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
             {radarOpen && (
               <Suspense fallback={<section className="panel opacity-80">{dict.radarLoading}</section>}>
                 <RadarPanel lat={place.lat} lon={place.lon} />

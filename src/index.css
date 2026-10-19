@@ -46,7 +46,7 @@
      panel on hover, would blur the panel's own contents into its top edge as a pale
      band. The navbar and the strip arrows keep theirs; content does pass under them. */
   .panel {
-    @apply rounded-3xl border border-white/20 bg-white/10 p-8;
+    @apply rounded-3xl border border-white/20 bg-white/10 p-4 sm:p-8;
     box-shadow: 0 12px 40px rgb(0 0 0 / 0.18);
   }
 

@@ -374,6 +374,36 @@ describe("the app", () => {
     expect(await screen.findByText("Прогноза за времето за 10 дни")).toBeTruthy();
   });
 
+  it("lists a picked day's hours under it on a phone, today's gone ones folded away", async () => {
+    // Narrower than sm: the one query the app asks does not match.
+    vi.stubGlobal("matchMedia", () =>
+      ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+
+    fireEvent.click(within(forecastPanel).getAllByRole("button")[3]);
+    const hourList = () => within(forecastPanel).getByRole("region", { name: "Почасова прогноза" });
+    const times = () => within(hourList()).getAllByText(/^\d\d:00$/).map(el => el.textContent);
+    expect(times()).toHaveLength(24);
+    expect(within(hourList()).queryByRole("button")).toBeNull(); // a day ahead has nothing gone
+
+    const today = () => within(forecastPanel).getByRole("button", { name: /^Днес/ });
+    fireEvent.click(today());
+    expect(times()).toEqual(["18:00", "19:00", "20:00", "21:00", "22:00", "23:00"]); // now is 18:30
+
+    fireEvent.click(within(hourList()).getByRole("button", { name: "▲ По-ранни часове (00–17)" }));
+    expect(times()).toHaveLength(24);
+    expect(times()[0]).toBe("00:00");
+    const hide = within(hourList()).getByRole("button", { name: "▼ Скрий по-ранните часове" });
+    expect(hide.getAttribute("aria-expanded")).toBe("true");
+
+    // Closed and opened again, today starts folded.
+    fireEvent.click(today());
+    fireEvent.click(today());
+    expect(times()[0]).toBe("18:00");
+  });
+
   it("switches units", async () => {
     show();
     await screen.findByText("София, България");

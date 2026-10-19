@@ -20,9 +20,10 @@ export default function Skeleton() {
         </div>
       </section>
       <section aria-hidden="true"
-        className="panel grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(80px,1fr))]">
+        className="panel grid grid-cols-1 gap-2 sm:gap-3
+          sm:[grid-template-columns:repeat(auto-fit,minmax(80px,1fr))]">
         {Array.from({ length: 10 }, (_, i) => (
-          <div key={i} className="skeleton-block h-[104px]" />
+          <div key={i} className="skeleton-block h-14 sm:h-[104px]" />
         ))}
       </section>
     </>
