@@ -57,22 +57,28 @@ const sky = cover => {
 
 // `rain` is mm an hour of water, `snow` cm an hour of ECMWF's snowfall: any snow makes it
 // snow, graded by its own depth, since a millimetre of water can fall as a centimetre of it.
-const falling = (rain, snow) => {
+// `cover` is the sky's cloud cover, in %: rain from a sky with breaks in it falls as
+// showers, the only rain drawn with a sun, and from an overcast one, or an unknown one,
+// as rain. Grading rain by sky rather than by rate is the point: nearly every wet hour is
+// light, and grading by rate once put a sun into overcast and into the middle of the night.
+const falling = (rain, snow, cover) => {
   if (snow > 0) {
     const [light, heavy] = MERGE.icons.snowRates;
     return snow < light ? 71 : snow <= heavy ? 73 : 75;
   }
   const [light, heavy] = MERGE.icons.rainRates;
-  return rain < light ? 61 : rain < heavy ? 63 : 65;
+  const grade = rain < light ? 0 : rain < heavy ? 1 : 2;
+  const showers = cover != null && sky(cover) < 3;
+  return (showers ? [80, 81, 82] : [61, 63, 65])[grade];
 };
 
 // One hour's icon. Whether anything falls is the merged rain's to say, so an icon can no
 // longer rain over a dry hour or shine over a wet one; snow is ECMWF's snowfall, and the
-// sky is the merged cloud cover. The model's code is kept only where the readings are
-// silent: a storm, if something is falling, and fog, if nothing is.
+// sky, dry or wet, is the merged cloud cover. The model's code is kept only where the
+// readings are silent: a storm, if something is falling, and fog, if nothing is.
 function hourCode(model, rain, snow, cover) {
   if (rain == null) return model; // nothing to hold the model to
-  if (rain >= MERGE.icons.wetHour) return isStorm(model) ? model : falling(rain, snow);
+  if (rain >= MERGE.icons.wetHour) return isStorm(model) ? model : falling(rain, snow, cover);
   if (isFog(model)) return model;
   if (cover != null) return sky(cover);
   return model != null && model < FALLING ? model : null;
@@ -116,28 +122,30 @@ function dominant(bearings, speeds) {
 }
 
 // A day's icon, built like an hour's from the rain printed under it: falling weather from
-// the day's total, snow if ECMWF had any, a storm if one of its wet hours was one, and its
-// heaviest hour for how hard. A dry day shows its daytime sky, the mean cloud cover over
-// `daytime`, unless fog held most of those hours: a foggy morning alone is not a foggy day.
+// the day's total, snow if ECMWF had any, a storm if one of its wet hours was one, its
+// heaviest hour for how hard, and its daytime sky for showers or rain. That sky, the mean
+// cloud cover over `daytime`, is also a dry day's icon, unless fog held most of those
+// hours: a foggy morning alone is not a foggy day.
 function dayIcon(hours, hourly, rain) {
   const { wetDay, daytime: [from, to] } = MERGE.icons;
   const codes = hours.map(i => hourly.weather_code[i]).filter(code => code != null);
   if (rain == null) return max(codes); // no rain to judge by: the worst hour, as Open-Meteo has it
+  const day = hours.filter(i => {
+    const hour = Number(hourly.time[i].slice(11, 13));
+    return hour >= from && hour <= to;
+  });
+  const covers = day.map(i => hourly.cloud_cover[i]).filter(v => v != null);
+  const cover = covers.length ? covers.reduce((total, v) => total + v, 0) / covers.length : null;
   if (rain >= wetDay) {
     const storms = codes.filter(isStorm);
     if (storms.length) return max(storms);
     const hourRain = hours.map(i => hourly.precipitation[i]).filter(v => v != null);
     const hourSnow = hours.map(i => hourly.snowfall[i]).filter(v => v != null);
-    return falling(max(hourRain), max(hourSnow));
+    return falling(max(hourRain), max(hourSnow), cover);
   }
-  const day = hours.filter(i => {
-    const hour = Number(hourly.time[i].slice(11, 13));
-    return hour >= from && hour <= to;
-  });
   const fog = day.map(i => hourly.weather_code[i]).filter(isFog);
   if (fog.length * 2 > day.length) return max(fog);
-  const covers = day.map(i => hourly.cloud_cover[i]).filter(v => v != null);
-  if (covers.length) return sky(covers.reduce((total, v) => total + v, 0) / covers.length);
+  if (cover != null) return sky(cover);
   return max(codes.filter(code => code < FALLING));
 }
 

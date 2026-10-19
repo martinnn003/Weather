@@ -51,6 +51,13 @@ describe("weather codes", () => {
     expect(weatherFor(63, "bg", false).icon).toBe(weatherFor(63, "bg", true).icon);
   });
 
+  it("puts a sun into falling weather only for showers, and only by day", () => {
+    const sunny = Object.keys(CODES).map(Number)
+      .filter(code => code >= 51 && weatherFor(code, "bg").icon === "🌦️");
+    expect(sunny).toEqual([80, 81]);
+    expect(sunny.map(code => weatherFor(code, "bg", false).icon)).toEqual(["🌧️", "🌧️"]);
+  });
+
   it("falls back for an unknown code", () => {
     expect(weatherFor(1234, "en")).toEqual({ icon: "❓", label: null });
   });
@@ -318,6 +325,11 @@ describe("merging the models", () => {
 // The six days' hours, from a function of the hour of the day and the day.
 const sixDays = make => Array.from({ length: 144 }, (_, i) => make(i % 24, Math.floor(i / 24)));
 const ecmwfRain = make => ({ [`precipitation_${MERGE.ecmwf}`]: sixDays(make) });
+// Both models' sky closed, every hour: rain falls as rain under it, not as showers.
+const overcast = {
+  [`cloud_cover_${MERGE.icon}`]: sixDays(() => 100),
+  [`cloud_cover_${MERGE.ecmwf}`]: sixDays(() => 100)
+};
 
 // By default ICON Global's code has it raining every hour, ECMWF's rainfall is nothing, and
 // the sky is 10% cloud: so unless a test adds rain, every icon below should come out clear.
@@ -335,30 +347,50 @@ describe("building the icons from the merged readings", () => {
     // Both models' codes say clear; ECMWF rains a millimetre an hour from 14:00 to 17:00.
     const { hourly, daily } = icons({
       [`weather_code_${MERGE.icon}`]: sixDays(() => 0),
-      ...ecmwfRain(h => (h >= 14 && h < 17 ? 1 : 0))
+      ...ecmwfRain(h => (h >= 14 && h < 17 ? 1 : 0)),
+      ...overcast
     });
     expect(daily.precipitation_sum[0]).toBe(3);
     expect(weatherFor(daily.weather_code[0], "bg").icon).toBe(CODES[61].icon);
     expect(hourly.weather_code[15]).toBe(61);
-    expect(hourly.weather_code[12]).toBe(0); // dry before it
+    expect(hourly.weather_code[12]).toBe(3); // dry before it, under the same closed sky
   });
 
   it("leaves an hour under 0.1 mm dry, and a day under 0.2 mm", () => {
     // Two hours of 0.05 mm on the first day, two of 0.1 mm on the second.
     const { hourly, daily } = icons(ecmwfRain((h, d) => (h === 14 || h === 15 ? [0.05, 0.1][d] ?? 0 : 0)));
     expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([0, 0]);
-    expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([61, 61]);
+    // Showers, under the default sky of 10% cloud.
+    expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([80, 80]);
   });
 
-  it("grades a day's rain by its heaviest hour", () => {
-    const { daily } = icons(ecmwfRain((h, d) => (h === 14 ? [1, 3, 8][d] ?? 0 : 0)));
-    expect(daily.weather_code.slice(0, 3)).toEqual([61, 63, 65]);
+  it("grades a day's rain and showers by its heaviest hour", () => {
+    const rain = ecmwfRain((h, d) => (h === 14 ? [1, 3, 8][d] ?? 0 : 0));
+    expect(icons({ ...rain, ...overcast }).daily.weather_code.slice(0, 3)).toEqual([61, 63, 65]);
+    expect(icons(rain).daily.weather_code.slice(0, 3)).toEqual([80, 81, 82]);
+  });
+
+  it("rains as showers under a sky with breaks, and as rain under a closed one", () => {
+    // A millimetre every hour; the sky 80% on either side of noon, 81% from noon on.
+    const { hourly } = icons({
+      ...ecmwfRain(() => 1),
+      [`cloud_cover_${MERGE.icon}`]: sixDays(h => (h < 12 ? 80 : 81))
+    });
+    expect([hourly.weather_code[11], hourly.weather_code[12]]).toEqual([80, 61]);
+
+    // A day's is its daytime sky's: closed by day and clear by night is a day of rain.
+    const { daily } = icons({
+      ...ecmwfRain(h => (h === 14 ? 1 : 0)),
+      [`cloud_cover_${MERGE.icon}`]: sixDays((h, d) => (d === 0 && h >= 8 && h <= 18 ? 100 : 0))
+    });
+    expect(daily.weather_code.slice(0, 2)).toEqual([61, 80]);
   });
 
   it("makes it snow only where ECMWF has snowfall", () => {
     const { hourly, daily } = icons({
       ...ecmwfRain(h => (h === 14 ? 1 : 0)),
-      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.7 : 0))
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.7 : 0)),
+      ...overcast
     });
     expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([71, 71]);
     expect(daily.weather_code[1]).toBe(61);
@@ -389,7 +421,8 @@ describe("building the icons from the merged readings", () => {
   it("asks ICON Global about storms until the seam ends, and ECMWF after", () => {
     const { hourly } = icons({
       [`weather_code_${MERGE.icon}`]: sixDays(() => 95),
-      ...ecmwfRain(() => 1)
+      ...ecmwfRain(() => 1),
+      ...overcast
     });
     expect(hourly.weather_code[MERGE.seam.end - 1]).toBe(95);
     expect(hourly.weather_code[MERGE.seam.end]).toBe(61);

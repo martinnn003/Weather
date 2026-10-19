@@ -1,5 +1,7 @@
-// WMO weather codes → icons plus a label per language. `night` is optional and
-// only differs for clear/partly-cloudy conditions.
+// WMO weather codes → icons plus a label per language. `night` is optional and only
+// differs where the day's icon has a sun in it. The sun goes into falling weather only for
+// showers, which fall between breaks in the sky; drizzle and rain fall from a closed one,
+// and how hard is the label's to say, since there is no emoji for light rain.
 export const CODES = {
   0:  { icon: "☀️",  night: "🌙", en: "Clear skies",        bg: "Ясно" },
   1:  { icon: "🌤️", night: "🌙", en: "Mostly clear",       bg: "Предимно ясно" },
@@ -7,12 +9,12 @@ export const CODES = {
   3:  { icon: "☁️",              en: "Overcast",           bg: "Плътна облачност" },
   45: { icon: "🌫️",             en: "Fog",                bg: "Мъгла" },
   48: { icon: "🌫️",             en: "Rime fog",           bg: "Ледена мъгла" },
-  51: { icon: "🌦️",             en: "Light drizzle",      bg: "Слаб дъждец" },
-  53: { icon: "🌦️",             en: "Drizzle",            bg: "Дъждец" },
+  51: { icon: "🌧️",             en: "Light drizzle",      bg: "Слаб дъждец" },
+  53: { icon: "🌧️",             en: "Drizzle",            bg: "Дъждец" },
   55: { icon: "🌧️",             en: "Heavy drizzle",      bg: "Силен дъждец" },
   56: { icon: "🌧️",             en: "Freezing drizzle",   bg: "Заледяващ дъждец" },
   57: { icon: "🌧️",             en: "Freezing drizzle",   bg: "Заледяващ дъждец" },
-  61: { icon: "🌦️",             en: "Light rain",         bg: "Слаб дъжд" },
+  61: { icon: "🌧️",             en: "Light rain",         bg: "Слаб дъжд" },
   63: { icon: "🌧️",             en: "Rain",               bg: "Дъжд" },
   65: { icon: "🌧️",             en: "Heavy rain",         bg: "Силен дъжд" },
   66: { icon: "🌧️",             en: "Freezing rain",      bg: "Заледяващ дъжд" },
@@ -21,9 +23,10 @@ export const CODES = {
   73: { icon: "❄️",             en: "Snow",               bg: "Снеговалеж" },
   75: { icon: "❄️",             en: "Heavy snow",         bg: "Силен снеговалеж" },
   77: { icon: "🌨️",             en: "Snow grains",        bg: "Снежни зърна" },
-  80: { icon: "🌦️",             en: "Light showers",      bg: "Слаби превалявания" },
-  81: { icon: "🌧️",             en: "Showers",            bg: "Превалявания" },
-  82: { icon: "⛈️",             en: "Heavy showers",      bg: "Силни превалявания" },
+  80: { icon: "🌦️", night: "🌧️", en: "Light showers",      bg: "Слаби превалявания" },
+  81: { icon: "🌦️", night: "🌧️", en: "Showers",            bg: "Превалявания" },
+  // A downpour, so no sun; and no thunder either, which is the storm codes' to draw.
+  82: { icon: "🌧️",             en: "Heavy showers",      bg: "Силни превалявания" },
   85: { icon: "🌨️",             en: "Snow showers",       bg: "Снежни превалявания" },
   86: { icon: "❄️",             en: "Heavy snow showers", bg: "Силни снежни превалявания" },
   95: { icon: "⛈️",             en: "Thunderstorm",       bg: "Гръмотевична буря" },

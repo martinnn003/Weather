@@ -213,7 +213,7 @@ describe("the app", () => {
       .getAllByRole("button");
     expect(within(tiles[0]).getByText(CODES[0].icon)).toBeTruthy();
     expect(within(tiles[0]).getByText("💧 0,0 мм")).toBeTruthy();
-    expect(within(tiles[1]).getByText(CODES[61].icon)).toBeTruthy();
+    expect(within(tiles[1]).getByText(CODES[80].icon)).toBeTruthy(); // showers: the sky is cloudless
     expect(within(tiles[1]).getByText("💧 3,0 мм")).toBeTruthy();
   });
 
