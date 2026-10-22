@@ -112,11 +112,13 @@ export default function HourlyStrip({ data, dayIndex }) {
               const temp = fmt.temp(hour.temp);
               // A missing reading stays blank: Math.round(null) would print a confident 0.
               const wind = hour.wind != null ? fmt.wind(hour.wind) : null;
+              // A dry hour prints its 0,0 as a dry day does; only a missing one is left blank.
+              const precip = hour.precip != null ? fmt.rain(hour.precip) : null;
               return (
                 <div
                   key={hour.time}
                   title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
-                    + (wind ? ` · ${wind}` : "")}
+                    + (precip ? ` · ${precip}` : "") + (wind ? ` · ${wind}` : "")}
                   style={{ flex: `0 0 ${HOUR_W}px` }}
                   className={`rounded-xl bg-white/10 px-2 py-3 text-center transition-colors
                     hover:bg-white/20 ${hour.past ? "opacity-45" : ""}`}
@@ -130,7 +132,12 @@ export default function HourlyStrip({ data, dayIndex }) {
                       and the wind would otherwise run together into one reading. */}
                   <div className="-mx-2 my-2 h-px bg-white/40" />
                   <div className="flex flex-col gap-1.5 text-xs opacity-80">
-                    <div>💧{fmt.percent(hour.rain)}</div>
+                    {/* The chance and the amount are one measurement, so no gap or rule
+                        between them: the amount stands right under its chance. */}
+                    <div>
+                      <div>💧{fmt.percent(hour.rain)}</div>
+                      {precip && <div>{precip}</div>}
+                    </div>
                     {/* An hour whose wind went missing has nothing below the rule to divide. */}
                     {wind && <div className="-mx-2 h-px bg-white/25" />}
                     {wind && <div>{wind}</div>}

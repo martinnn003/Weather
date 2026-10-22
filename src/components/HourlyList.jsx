@@ -42,13 +42,15 @@ export default function HourlyList({ data, dayIndex }) {
         const temp = fmt.temp(hour.temp);
         // A missing reading stays blank: Math.round(null) would print a confident 0.
         const wind = hour.wind != null ? fmt.wind(hour.wind) : null;
+        // A dry hour prints its 0,0 as a dry day does; only a missing one is left blank.
+        const precip = hour.precip != null ? fmt.rain(hour.precip) : null;
         // The last column is the day row's, at the same inset, so each hour's wind stands
         // under the day's.
         return (
           <div
             key={hour.time}
             title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
-              + (wind ? ` · ${wind}` : "")}
+              + (precip ? ` · ${precip}` : "") + (wind ? ` · ${wind}` : "")}
             className={`grid grid-cols-[2.5rem_1.75rem_minmax(0,1fr)_3rem_4rem] items-center
               gap-x-2 py-2 text-sm ${i || past.length ? "border-t border-white/15" : ""}
               ${hour.past ? "opacity-45" : ""}`}
@@ -56,7 +58,12 @@ export default function HourlyList({ data, dayIndex }) {
             <div className="opacity-75">{time}</div>
             <div className="text-center text-xl leading-none">{icon}</div>
             <div className="font-semibold">{temp}</div>
-            <div className="text-xs whitespace-nowrap opacity-80">💧{fmt.percent(hour.rain)}</div>
+            {/* The amount goes under its chance: on one line the two do not fit a 360px
+                phone without squeezing every column and the wind out from under the day's. */}
+            <div className="text-xs whitespace-nowrap opacity-80">
+              <div>💧{fmt.percent(hour.rain)}</div>
+              {precip && <div>{precip}</div>}
+            </div>
             <div className="text-xs whitespace-nowrap opacity-80">{wind}</div>
           </div>
         );

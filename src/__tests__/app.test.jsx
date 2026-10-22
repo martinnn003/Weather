@@ -279,6 +279,36 @@ describe("the app", () => {
     expect(within(strip).queryByText(/км\/ч/)).toBeNull();
   });
 
+  it("gives every hour its rain under its chance, a dry hour its nought", async () => {
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    const cellFor = time => within(strip).getByText(time).closest("div[title]");
+    expect(within(strip).getAllByText(/мм$/)).toHaveLength(24);
+    expect(within(cellFor("15:00")).getByText("0,3 мм")).toBeTruthy(); // the wet afternoon
+    expect(within(cellFor("10:00")).getByText("0,0 мм")).toBeTruthy();
+    expect(cellFor("15:00").title).toContain("0,3 мм");
+  });
+
+  it("leaves an hour's rain blank when the forecast has none, and only that hour's", async () => {
+    const gap = {
+      ...forecast,
+      hourly: { ...forecast.hourly, precipitation: each(h => (h === 10 ? null : 0)) }
+    };
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? answer(gap)
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    const cellFor = time => within(strip).getByText(time).closest("div[title]");
+    expect(within(strip).getAllByText(/мм$/)).toHaveLength(23);
+    expect(within(cellFor("10:00")).queryByText(/мм$/)).toBeNull();
+    expect(within(cellFor("11:00")).getByText("0,0 мм")).toBeTruthy();
+  });
+
   it("re-aims the strip at the new day instead of keeping the last scroll", async () => {
     show();
     await screen.findByText("София, България");
@@ -387,6 +417,9 @@ describe("the app", () => {
     const times = () => within(hourList()).getAllByText(/^\d\d:00$/).map(el => el.textContent);
     expect(times()).toHaveLength(24);
     expect(within(hourList()).queryByRole("button")).toBeNull(); // a day ahead has nothing gone
+    const rowFor = time => within(hourList()).getByText(time).closest("div[title]");
+    expect(within(rowFor("15:00")).getByText("0,3 мм")).toBeTruthy();
+    expect(within(rowFor("10:00")).getByText("0,0 мм")).toBeTruthy();
 
     const today = () => within(forecastPanel).getByRole("button", { name: /^Днес/ });
     fireEvent.click(today());
