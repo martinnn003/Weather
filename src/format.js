@@ -13,13 +13,14 @@ export function formatters(unit, dict) {
   // Eight compass points, so every direction rounds to the nearest 45°. The arrow and
   // the word are the same reading shown two ways; they share this so they cannot diverge.
   const dir = deg => Math.round(deg / 45) % 8;
-  // Every number on the page is written here, in the language's own way: 1,2 on the
-  // Bulgarian page, 1.2 on the English one. It is rounded first, as it always was, and
-  // only then handed to Intl, so no reading rounds differently; `+ 0` turns a -0 into
-  // the 0 it is, and grouping stays off, or English would start writing 1,013 hPa.
+  // Every number on the page is written here, with a decimal point in both languages:
+  // 19.5°, not the Bulgarian 19,5°, which the page wrote for a while and the user liked
+  // less. It is rounded first, as it always was, and only then handed to Intl, so no
+  // reading rounds differently; `+ 0` turns a -0 into the 0 it is, and grouping stays
+  // off, or it would start writing 1,013 hPa.
   const formats = [];
   const num = (value, digits = 0) => {
-    formats[digits] ??= new Intl.NumberFormat(dict.locale,
+    formats[digits] ??= new Intl.NumberFormat("en-US",
       { useGrouping: false, minimumFractionDigits: digits, maximumFractionDigits: digits });
     return formats[digits].format((digits ? Number(value.toFixed(digits)) : Math.round(value)) + 0);
   };

@@ -66,7 +66,7 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
         { weekday: "long", day: "numeric", month: "long", timeZone: "UTC" })
     : dict.subtitle;
 
-  // The reading for now is shown to the tenth it is read to, 8,0 as well as 8,7, so the
+  // The reading for now is shown to the tenth it is read to, 8.0 as well as 8.7, so the
   // headline keeps its width from one quarter hour to the next. A day's high, like every
   // other temperature on the page, stays whole.
   const headline = day > 0

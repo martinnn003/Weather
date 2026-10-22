@@ -132,7 +132,7 @@ describe("the app", () => {
     show();
     expect(screen.getByRole("status", { name: "Зареждане на прогнозата" })).toBeTruthy();
     expect(await screen.findByText("София, България")).toBeTruthy();
-    expect(screen.getByText("26,0°C")).toBeTruthy();
+    expect(screen.getByText("26.0°C")).toBeTruthy();
     expect(screen.getAllByRole("button", { pressed: false }).length).toBeGreaterThan(0);
   });
 
@@ -166,7 +166,7 @@ describe("the app", () => {
     // The speed is the day's strongest hour, 23:00's.
     expect(within(forecastPanel).getAllByText("↖ 27 км/ч")).toHaveLength(10);
     // The arrow is a glyph a screen reader cannot say, so the label spells the bearing out.
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 км\/ч, валежи 1,2 мм$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, вятър ЮИ 27 км\/ч, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -180,7 +180,7 @@ describe("the app", () => {
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
     // Math.round(null) is 0, which would otherwise print a confident "0 км/ч".
     expect(within(forecastPanel).queryByText(/км\/ч/)).toBeNull();
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1,2 мм$/ }))
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*мин\. 18°, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -188,8 +188,8 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getAllByText("💧 1,2 мм")).toHaveLength(10);
-    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1,2 мм$/ }))
+    expect(within(forecastPanel).getAllByText("💧 1.2 мм")).toHaveLength(10);
+    expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
 
@@ -212,9 +212,9 @@ describe("the app", () => {
     const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
       .getAllByRole("button");
     expect(within(tiles[0]).getByText(CODES[0].icon)).toBeTruthy();
-    expect(within(tiles[0]).getByText("💧 0,0 мм")).toBeTruthy();
+    expect(within(tiles[0]).getByText("💧 0.0 мм")).toBeTruthy();
     expect(within(tiles[1]).getByText(CODES[80].icon)).toBeTruthy(); // showers: the sky is cloudless
-    expect(within(tiles[1]).getByText("💧 3,0 мм")).toBeTruthy();
+    expect(within(tiles[1]).getByText("💧 3.0 мм")).toBeTruthy();
   });
 
   it("prints a dry day's nought, and leaves only a missing total blank", async () => {
@@ -230,7 +230,7 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getByText("💧 0,0 мм")).toBeTruthy();
+    expect(within(forecastPanel).getByText("💧 0.0 мм")).toBeTruthy();
     expect(within(forecastPanel).getAllByText(/мм$/)).toHaveLength(1);
   });
 
@@ -286,9 +286,9 @@ describe("the app", () => {
     const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
     const cellFor = time => within(strip).getByText(time).closest("div[title]");
     expect(within(strip).getAllByText(/мм$/)).toHaveLength(24);
-    expect(within(cellFor("15:00")).getByText("0,3 мм")).toBeTruthy(); // the wet afternoon
-    expect(within(cellFor("10:00")).getByText("0,0 мм")).toBeTruthy();
-    expect(cellFor("15:00").title).toContain("0,3 мм");
+    expect(within(cellFor("15:00")).getByText("0.3 мм")).toBeTruthy(); // the wet afternoon
+    expect(within(cellFor("10:00")).getByText("0.0 мм")).toBeTruthy();
+    expect(cellFor("15:00").title).toContain("0.3 мм");
   });
 
   it("leaves an hour's rain blank when the forecast has none, and only that hour's", async () => {
@@ -306,7 +306,7 @@ describe("the app", () => {
     const cellFor = time => within(strip).getByText(time).closest("div[title]");
     expect(within(strip).getAllByText(/мм$/)).toHaveLength(23);
     expect(within(cellFor("10:00")).queryByText(/мм$/)).toBeNull();
-    expect(within(cellFor("11:00")).getByText("0,0 мм")).toBeTruthy();
+    expect(within(cellFor("11:00")).getByText("0.0 мм")).toBeTruthy();
   });
 
   it("re-aims the strip at the new day instead of keeping the last scroll", async () => {
@@ -418,8 +418,8 @@ describe("the app", () => {
     expect(times()).toHaveLength(24);
     expect(within(hourList()).queryByRole("button")).toBeNull(); // a day ahead has nothing gone
     const rowFor = time => within(hourList()).getByText(time).closest("div[title]");
-    expect(within(rowFor("15:00")).getByText("0,3 мм")).toBeTruthy();
-    expect(within(rowFor("10:00")).getByText("0,0 мм")).toBeTruthy();
+    expect(within(rowFor("15:00")).getByText("0.3 мм")).toBeTruthy();
+    expect(within(rowFor("10:00")).getByText("0.0 мм")).toBeTruthy();
 
     const today = () => within(forecastPanel).getByRole("button", { name: /^Днес/ });
     fireEvent.click(today());
@@ -441,8 +441,8 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     fireEvent.click(screen.getByRole("button", { name: "°F" }));
-    expect(await screen.findByText("78,8°F")).toBeTruthy();
-    expect(screen.getByText("29,91 inHg")).toBeTruthy();
+    expect(await screen.findByText("78.8°F")).toBeTruthy();
+    expect(screen.getByText("29.91 inHg")).toBeTruthy();
   });
 
   it("translates the whole interface, including the city name", async () => {
@@ -603,7 +603,7 @@ describe("the app", () => {
     history.replaceState(null, "", "/plovidv-bulgaria-728193?lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
-    expect(screen.getByText("78,8°F")).toBeTruthy();
+    expect(screen.getByText("78.8°F")).toBeTruthy();
     await waitFor(() => expect(location.pathname).toBe("/plovdiv-balgariya-728193"));
   });
 
@@ -622,7 +622,7 @@ describe("the app", () => {
     history.replaceState(null, "", "/?lat=42.15&lon=24.75&city=Plovdiv&id=728193&lang=bg&unit=f");
     show();
     expect(await screen.findByText("Пловдив, България")).toBeTruthy();
-    expect(screen.getByText("78,8°F")).toBeTruthy();
+    expect(screen.getByText("78.8°F")).toBeTruthy();
   });
 
   it("reports a failed load", async () => {

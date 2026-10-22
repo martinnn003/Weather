@@ -89,34 +89,34 @@ describe("formatting", () => {
     expect(imperial.pressure(1013)).toBe("29.91 inHg");
     expect(metric.distance(24140)).toBe("24 км");
     expect(imperial.distance(16090)).toBe("10 mi");
-    expect(metric.rain(2.35)).toBe("2,4 мм");
+    expect(metric.rain(2.35)).toBe("2.4 мм");
     expect(imperial.rain(25.4)).toBe("1.00 in");
   });
 
   it("names the metric units in the language's own script", () => {
     expect([metric.wind(12.3), metric.rain(2.35), metric.distance(24140), metric.pressure(1012.8)])
-      .toEqual(["12 км/ч", "2,4 мм", "24 км", "1013 хПа"]);
+      .toEqual(["12 км/ч", "2.4 мм", "24 км", "1013 хПа"]);
     expect([metricEn.wind(12.3), metricEn.rain(2.35), metricEn.distance(24140), metricEn.pressure(1012.8)])
       .toEqual(["12 km/h", "2.4 mm", "24 km", "1013 hPa"]);
   });
 
-  it("writes decimals with a comma on the Bulgarian page and a point on the English one", () => {
+  it("writes decimals with a point in both languages", () => {
     const imperialBg = formatters("f", I18N.bg);
-    expect(metric.rain(1.2)).toBe("1,2 мм");
+    expect(metric.rain(1.2)).toBe("1.2 мм");
     expect(metricEn.rain(1.2)).toBe("1.2 mm");
-    // Every number, an imperial one too; only the unit's name keeps its usual form.
-    expect(imperialBg.pressure(1013)).toBe("29,91 inHg");
-    expect(imperialBg.rain(25.4)).toBe("1,00 in");
-    expect(imperial.pressure(1013)).toBe("29.91 inHg");
+    expect(metric.temp(19.5, 1)).toBe("19.5°");
+    // Every number, an imperial one too; only the unit's name changes with the language.
+    expect(imperialBg.pressure(1013)).toBe("29.91 inHg");
+    expect(imperialBg.rain(25.4)).toBe("1.00 in");
   });
 
   it("rounds as before, and never groups digits or prints a minus nought", () => {
     expect(metricEn.pressure(1013.2)).toBe("1013 hPa"); // not 1,013
     expect(metric.temp(-2.5)).toBe("-2°"); // Math.round's half, as it always was
     expect(metric.temp(-0.3)).toBe("0°"); // not -0°
-    expect(metric.temp(-0.04, 1)).toBe("0,0°"); // nor -0,0°
+    expect(metric.temp(-0.04, 1)).toBe("0.0°"); // nor -0.0°
     expect([metric.temp(8.66, 1), metric.temp(8, 1), metricEn.temp(5.5, 1)])
-      .toEqual(["8,7°", "8,0°", "5.5°"]); // to a tenth, for the reading for now
+      .toEqual(["8.7°", "8.0°", "5.5°"]); // to a tenth, for the reading for now
     expect(metric.percent(61)).toBe("61%");
     expect(metric.num(4.95)).toBe("5");
   });

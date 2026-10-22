@@ -112,7 +112,7 @@ export default function HourlyStrip({ data, dayIndex }) {
               const temp = fmt.temp(hour.temp);
               // A missing reading stays blank: Math.round(null) would print a confident 0.
               const wind = hour.wind != null ? fmt.wind(hour.wind) : null;
-              // A dry hour prints its 0,0 as a dry day does; only a missing one is left blank.
+              // A dry hour prints its 0.0 as a dry day does; only a missing one is left blank.
               const precip = hour.precip != null ? fmt.rain(hour.precip) : null;
               return (
                 <div
