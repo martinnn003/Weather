@@ -3,15 +3,12 @@ import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { timeStr } from "../format.js";
+import { smooth } from "../motion.js";
 import Drop from "./Drop.jsx";
 
 const HOUR_STEP = HOUR_W + HOUR_GAP;
 
 const stepFor = width => Math.max(1, Math.round(width / 2 / HOUR_STEP)) * HOUR_STEP;
-
-// A scroll is a movement like any other on the page, so it follows the same preference.
-const smooth = () =>
-  (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth");
 
 // Sits over the strip's edge: a fade that shows the hours carry on underneath, and the
 // button that moves them. Both go when there is nothing left that way.
@@ -121,8 +118,9 @@ export default function HourlyStrip({ data, dayIndex }) {
                   title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
                     + (precip ? ` · ${precip}` : "") + (wind ? ` · ${wind}` : "")}
                   style={{ flex: `0 0 ${HOUR_W}px` }}
-                  className={`rounded-xl bg-white/10 px-2 py-3 text-center transition-colors
-                    hover:bg-white/20 ${hour.past ? "opacity-45" : ""}`}
+                  // No light on hover: an hour opens nothing, and a cell that lit up
+                  // under the pointer promised a click that did nothing.
+                  className={`rounded-xl bg-white/10 px-2 py-3 text-center ${hour.past ? "opacity-45" : ""}`}
                 >
                   <div className="text-sm opacity-75">{time}</div>
                   <img src={icon} alt={label ?? dict.unknown} className="mx-auto h-12 w-12" />

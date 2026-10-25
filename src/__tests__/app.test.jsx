@@ -93,8 +93,18 @@ const defaultFetch = url => {
   if (url.includes("/v1/search")) {
     return respond({ results: [{ id: 728193, name: "Plovdiv", country: "Bulgaria", admin1: "Plovdiv", latitude: 42.15, longitude: 24.75 }] });
   }
+  if (url.includes("rainviewer")) {
+    return respond({ host: "https://tilecache.rainviewer.com", radar: { past: [{ path: "/v2/radar/1", time: 1785085200 }] } });
+  }
   throw new Error(`unexpected request: ${url}`);
 };
+
+// Leaflet draws into a box jsdom never lays out. The radar's tests ask only where the
+// panel is, so the map is a stand-in that takes every call and draws nothing.
+vi.mock("leaflet", () => {
+  const map = { setView: () => map, remove: () => {} };
+  return { default: { map: () => map, tileLayer: () => ({ addTo: () => {} }) } };
+});
 
 const fetchStub = vi.fn(defaultFetch);
 
@@ -482,6 +492,72 @@ describe("the app", () => {
       screen.getByRole("button", { name: "Радар за валежи" })
     ].map(el => el.querySelector("img")?.getAttribute("src"));
     expect(drawn.every(Boolean)).toBe(true);
+  });
+
+  it("brings the radar into view when it is opened, and not when the city changes under it", async () => {
+    // jsdom has no scrollIntoView at all, so it is added rather than spied on.
+    const scrolledTo = [];
+    Element.prototype.scrollIntoView = function () { scrolledTo.push(this); };
+    try {
+      show();
+      await screen.findByText("София, България");
+      const radarButton = screen.getByRole("button", { name: "Радар за валежи" });
+
+      fireEvent.click(radarButton);
+      const radar = await screen.findByRole("region", { name: "Радар за валежи" });
+      await waitFor(() => expect(scrolledTo).toEqual([radar]));
+
+      fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
+      fireEvent.click(await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 }));
+      await screen.findByText("Пловдив, България");
+      await screen.findByRole("region", { name: "Радар за валежи" });
+      expect(scrolledTo).toHaveLength(1); // drawn again for the new city, and left where it is
+
+      fireEvent.click(radarButton);
+      expect(screen.queryByRole("region", { name: "Радар за валежи" })).toBeNull();
+      fireEvent.click(radarButton);
+      await waitFor(() => expect(scrolledTo).toHaveLength(2)); // asked for again, so shown again
+    } finally {
+      delete Element.prototype.scrollIntoView;
+    }
+  });
+
+  it("offers a way back to the top on a phone, once the first screen is scrolled past", async () => {
+    vi.stubGlobal("matchMedia", () =>
+      ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    const scrollTo = vi.fn();
+    vi.stubGlobal("scrollTo", scrollTo);
+    const scrollDown = y => {
+      Object.defineProperty(window, "scrollY", { value: y, configurable: true });
+      fireEvent.scroll(window);
+    };
+    try {
+      show();
+      await screen.findByText("София, България");
+      // Hidden, it is out of reach as well as out of sight.
+      expect(screen.queryByRole("button", { name: "Към началото" })).toBeNull();
+
+      scrollDown(window.innerHeight + 1);
+      fireEvent.click(screen.getByRole("button", { name: "Към началото" }));
+      expect(scrollTo).toHaveBeenCalledWith({ top: 0, behavior: "smooth" });
+
+      scrollDown(0);
+      expect(screen.queryByRole("button", { name: "Към началото" })).toBeNull();
+    } finally {
+      Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    }
+  });
+
+  it("leaves the button to the top off a wide screen, where the page is barely longer than it", async () => {
+    show();
+    await screen.findByText("София, България");
+    Object.defineProperty(window, "scrollY", { value: window.innerHeight + 1, configurable: true });
+    try {
+      fireEvent.scroll(window);
+      expect(screen.queryByRole("button", { name: "Към началото", hidden: true })).toBeNull();
+    } finally {
+      Object.defineProperty(window, "scrollY", { value: 0, configurable: true });
+    }
   });
 
   it("returns to the home city when the brand is clicked", async () => {

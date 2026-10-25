@@ -68,7 +68,7 @@ export default function Forecast({ data, selectedDay, onSelect, detail }) {
                 e.preventDefault();
                 onSelect(i);
               }}
-              className={`grid cursor-pointer grid-cols-[minmax(0,1fr)_auto_4.25rem_4rem]
+              className={`grid grid-cols-[minmax(0,1fr)_auto_4.25rem_4rem]
                 items-center gap-x-2 rounded-xl px-3 py-2.5 text-left transition
                 sm:block sm:rounded-2xl sm:px-2 sm:py-4 sm:text-center
                 hover:-translate-y-0.5 hover:bg-white/20 motion-reduce:hover:translate-y-0

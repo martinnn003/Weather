@@ -11,12 +11,12 @@ function Chip({ place, active, onGo, onRemove }) {
     <span className={`flex items-center rounded-full border border-white/20 backdrop-blur-md
       ${active ? "bg-white/30" : "bg-white/15"}`}>
       <button type="button" onClick={onGo}
-        className="cursor-pointer py-1.5 pr-1 pl-3.5 text-sm whitespace-nowrap">
+        className="py-1.5 pr-1 pl-3.5 text-sm whitespace-nowrap">
         {name}
       </button>
       <button type="button" onClick={onRemove} title={dict.favRemoveOne(name)}
         aria-label={dict.favRemoveOne(name)}
-        className="cursor-pointer py-1.5 pr-3 pl-1.5 leading-none opacity-65 hover:opacity-100">
+        className="py-1.5 pr-3 pl-1.5 leading-none opacity-65 hover:opacity-100">
         ×
       </button>
     </span>

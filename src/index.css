@@ -32,6 +32,13 @@
   body.weather-storm  { --sky-top: #353f4d; --sky-mid: #242c37; --sky-bottom: #12181f; }
   body.night          { --sky-top: #1e293b; --sky-mid: #0f172a; --sky-bottom: #020617; }
 
+  /* Tailwind 4's reset no longer gives a button the hand, and the browser's own is the
+     arrow, which says there is nothing here to press. A disabled one keeps the arrow. */
+  button:not(:disabled),
+  [role="button"] {
+    cursor: pointer;
+  }
+
   button:focus-visible,
   input:focus-visible,
   [role="button"]:focus-visible {
@@ -53,7 +60,7 @@
   .icon-btn {
     @apply grid h-9 w-9 shrink-0 place-items-center rounded-xl border border-white/25
       bg-white/15 text-base transition-colors hover:bg-white/30
-      disabled:cursor-default disabled:opacity-50 disabled:hover:bg-white/15;
+      disabled:opacity-50 disabled:hover:bg-white/15;
   }
   .icon-btn[aria-pressed="true"] { @apply bg-white/30; }
   .icon-btn-sm { @apply h-8 w-8 text-sm; }
@@ -90,7 +97,7 @@
   .strip-arrow {
     @apply grid h-11 w-11 shrink-0 place-items-center rounded-full border border-white/30
       bg-white/25 pb-0.5 text-2xl leading-none backdrop-blur-md transition-colors
-      hover:bg-white/40 disabled:cursor-default;
+      hover:bg-white/40;
   }
 
   .skeleton-block {

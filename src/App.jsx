@@ -1,10 +1,11 @@
-import { lazy, Suspense, useCallback, useEffect, useState } from "react";
+import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import NowPanel from "./components/NowPanel.jsx";
 import Forecast from "./components/Forecast.jsx";
 import HourlyStrip from "./components/HourlyStrip.jsx";
 import HourlyList from "./components/HourlyList.jsx";
 import FavoritesBar from "./components/FavoritesBar.jsx";
+import BackToTop from "./components/BackToTop.jsx";
 import Skeleton from "./components/Skeleton.jsx";
 import { useSettings } from "./settings.jsx";
 import { useWeather } from "./hooks/useWeather.js";
@@ -13,6 +14,7 @@ import { useFavorites } from "./hooks/useFavorites.js";
 import { useMediaQuery } from "./hooks/useMediaQuery.js";
 import { groupFor } from "./weatherCodes.js";
 import { fetchPlace } from "./api.js";
+import { smooth } from "./motion.js";
 import {
   DEFAULT_PLACE, loadPlace, placeFromCity, placeFromUrl, samePlace, savePlace, syncUrl
 } from "./place.js";
@@ -109,6 +111,22 @@ export default function App() {
     setGeoError(null);
   }, [place, reload]);
 
+  // The radar opens at the foot of the page, mostly below the screen, where nothing in
+  // view would show that the button did anything; so the panel is brought into view once
+  // it is drawn. Only when it was asked for: a new city draws it again, and the reader
+  // came for that city's forecast, not to be carried past it to the map.
+  const radarAsked = useRef(false);
+  const toggleRadar = () => {
+    radarAsked.current = !radarOpen;
+    setRadarOpen(!radarOpen);
+  };
+  const revealRadar = useCallback(panel => {
+    if (!radarAsked.current) return;
+    radarAsked.current = false;
+    // The least move that shows it whole, so the days above stay on screen where they fit.
+    panel.scrollIntoView({ behavior: smooth(), block: "nearest" });
+  }, []);
+
   const share = useCallback(async () => {
     try {
       await navigator.clipboard.writeText(location.href);
@@ -129,7 +147,7 @@ export default function App() {
         onLocate={locate}
         onHome={goHome}
         radarOpen={radarOpen}
-        onToggleRadar={() => setRadarOpen(open => !open)}
+        onToggleRadar={toggleRadar}
       />
 
       {/* One stacked column: every panel gets the full width, so the ten days read as a
@@ -177,14 +195,16 @@ export default function App() {
             {wide && selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
             {radarOpen && (
               <Suspense fallback={<section className="panel opacity-80">{dict.radarLoading}</section>}>
-                <RadarPanel lat={place.lat} lon={place.lon} />
+                <RadarPanel lat={place.lat} lon={place.lon} onShown={revealRadar} />
               </Suspense>
             )}
           </>
         )}
       </main>
 
-      <footer className="p-6 text-center text-xs opacity-70">
+      {/* On a phone the bottom keeps room for the button to the top, so at the very end
+          of the page it covers none of the attribution. */}
+      <footer className="p-6 pb-20 text-center text-xs opacity-70 sm:pb-6">
         {/* The attribution the models' licences ask for: the lead-in is translated, the
             names of the sources and the licence are the same in every language. */}
         {dict.footerData}{" "}
@@ -198,6 +218,8 @@ export default function App() {
           {toast}
         </div>
       )}
+
+      {!wide && <BackToTop />}
     </div>
   );
 }
