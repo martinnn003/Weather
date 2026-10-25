@@ -1,14 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" rx="112" fill="#0ea5e9"/>
-  <g stroke="#fde047" stroke-width="26" stroke-linecap="round">
-    <line x1="256" y1="70"  x2="256" y2="118"/>
-    <line x1="256" y1="394" x2="256" y2="442"/>
-    <line x1="70"  y1="256" x2="118" y2="256"/>
-    <line x1="394" y1="256" x2="442" y2="256"/>
-    <line x1="124" y1="124" x2="158" y2="158"/>
-    <line x1="354" y1="354" x2="388" y2="388"/>
-    <line x1="388" y1="124" x2="354" y2="158"/>
-    <line x1="158" y1="354" x2="124" y2="388"/>
+  <!-- The navbar's Meteocons sun, in its yellows and proportions but drawn heavier, for a
+       tab sixteen pixels wide, on the clear sky's blue. The rays end inside the middle 80%,
+       which is all an Android launcher's round mask is sure to keep. -->
+  <defs>
+    <linearGradient id="core" x1="0" x2="0" y1="168" y2="344" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#fbbf24"/>
+      <stop offset="1" stop-color="#f8af18"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="#006cac"/>
+  <g stroke="#f8af18" stroke-width="38" stroke-linecap="round">
+    <line x1="256" y1="117" x2="256" y2="71"/>
+    <line x1="354.3" y1="157.7" x2="386.8" y2="125.2"/>
+    <line x1="395" y1="256" x2="441" y2="256"/>
+    <line x1="354.3" y1="354.3" x2="386.8" y2="386.8"/>
+    <line x1="256" y1="395" x2="256" y2="441"/>
+    <line x1="157.7" y1="354.3" x2="125.2" y2="386.8"/>
+    <line x1="117" y1="256" x2="71" y2="256"/>
+    <line x1="157.7" y1="157.7" x2="125.2" y2="125.2"/>
   </g>
-  <circle cx="256" cy="256" r="96" fill="#fde047"/>
+  <circle cx="256" cy="256" r="88" fill="url(#core)" stroke="#f8af18" stroke-width="4"/>
 </svg>

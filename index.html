@@ -11,7 +11,9 @@
   <meta property="og:type" content="website">
   <meta name="twitter:card" content="summary">
   <link rel="icon" href="./icon.svg">
-  <link rel="apple-touch-icon" href="./icon.svg">
+  <!-- An iPhone takes no SVG for the home screen. This is icon.svg at 180px, its corners
+       square, since iOS rounds them itself and would fill rounded ones with black. -->
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png">
   <link rel="manifest" href="./manifest.json">
 </head>
 <body>

@@ -1,7 +1,9 @@
-// Bump this version whenever the caching rules change to invalidate old caches.
+// Bump this version whenever the caching rules change to invalidate old caches, and
+// whenever a precached file that keeps its name, like icon.svg, is redrawn: it is
+// served cache-first, so the old copy would otherwise stay for good.
 // Build output is content-hashed, so the asset list no longer lives here — files
 // are cached as they are requested.
-const CACHE = "weather-v8";
+const CACHE = "weather-v9";
 const PRECACHE = ["./", "./index.html", "./manifest.json", "./icon.svg"];
 
 self.addEventListener("install", event => {
