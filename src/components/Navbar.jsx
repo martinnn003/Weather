@@ -1,6 +1,7 @@
 import SearchBox from "./SearchBox.jsx";
 import { useSettings } from "../settings.jsx";
 import { LANGS } from "../i18n.js";
+import { iconUrl } from "../weatherCodes.js";
 
 function SegToggle({ label, options, value, onChange }) {
   return (
@@ -41,10 +42,11 @@ export default function Navbar({ onPick, onLocate, onHome, radarOpen, onToggleRa
           href="./"
           onClick={home}
           aria-label={dict.homeLabel}
-          className="mr-auto rounded-lg text-lg font-bold whitespace-nowrap transition
+          className="mr-auto flex items-center gap-1.5 rounded-lg text-lg font-bold whitespace-nowrap transition
             hover:opacity-75 focus-visible:outline focus-visible:outline-2
             focus-visible:outline-offset-2 focus-visible:outline-white/70 sm:mr-0"
         >
+          <img src={iconUrl("sun")} alt="" className="h-[26px] w-[26px]" />
           {dict.brand}
         </a>
 
@@ -54,9 +56,13 @@ export default function Navbar({ onPick, onLocate, onHome, radarOpen, onToggleRa
 
         <div className="flex items-center gap-1.5 sm:gap-2.5">
           <button type="button" className="icon-btn" title={dict.geoLabel}
-            aria-label={dict.geoLabel} onClick={onLocate}>📍</button>
+            aria-label={dict.geoLabel} onClick={onLocate}>
+            <img src={iconUrl("pin")} alt="" className="h-[22px] w-[22px]" />
+          </button>
           <button type="button" className="icon-btn" title={dict.radarLabel}
-            aria-label={dict.radarLabel} aria-pressed={radarOpen} onClick={onToggleRadar}>🛰️</button>
+            aria-label={dict.radarLabel} aria-pressed={radarOpen} onClick={onToggleRadar}>
+            <img src={iconUrl("radar")} alt="" className="h-[22px] w-[22px]" />
+          </button>
 
           <SegToggle
             label={dict.unitLabel}

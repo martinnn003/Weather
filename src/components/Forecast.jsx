@@ -3,6 +3,7 @@ import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { daySources } from "../merge.js";
 import { debugOn } from "../place.js";
+import Drop from "./Drop.jsx";
 
 // `detail` is set in under the picked day: on a phone, that day's hours.
 export default function Forecast({ data, selectedDay, onSelect, detail }) {
@@ -79,7 +80,9 @@ export default function Forecast({ data, selectedDay, onSelect, detail }) {
               <div className="col-start-1 row-start-2 text-xs opacity-75 max-sm:truncate">
                 {dayDate}
               </div>
-              <div className="col-start-2 text-2xl [grid-row:1/3] sm:mt-1.5 sm:mb-2">{icon}</div>
+              {/* The tile's label names the weather, so the picture adds nothing to read. */}
+              <img src={icon} alt="" className="col-start-2 -my-2 h-12 w-12 [grid-row:1/3]
+                sm:mx-auto sm:my-0" />
               {/* In a row the high gets a box of its own, right-aligned, so the degree signs
                   line up down the list and every low starts at the same place. */}
               <div className="col-start-3 flex items-baseline gap-2 [grid-row:1/3] sm:block">
@@ -109,7 +112,7 @@ export default function Forecast({ data, selectedDay, onSelect, detail }) {
                     {hasWind && <div>{fmt.windArrow(deg)} {fmt.wind(speed)}</div>}
                     {/* A day whose wind went missing has nothing above the rule to divide. */}
                     {hasWind && hasRain && <div className="-mx-2 hidden h-px bg-white/25 sm:block" />}
-                    {hasRain && <div>💧 {fmt.rain(rain)}</div>}
+                    {hasRain && <div><Drop />{fmt.rain(rain)}</div>}
                   </div>
                 </div>
               )}

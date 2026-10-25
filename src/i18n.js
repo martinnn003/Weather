@@ -9,7 +9,7 @@ export const I18N = {
   en: {
     locale: "en-US",
     title: "MeteoDita — 10-Day Forecast",
-    brand: "☀️ MeteoDita", // the name is not translated, only what surrounds it
+    brand: "MeteoDita", // the name is not translated, only what surrounds it
     homeLabel: "MeteoDita — home",
     searchPlaceholder: "Search for a city…",
     searchLabel: "Search for a city",
@@ -77,7 +77,7 @@ export const I18N = {
   bg: {
     locale: "bg-BG",
     title: "MeteoDita — прогноза за 10 дни",
-    brand: "☀️ MeteoDita",
+    brand: "MeteoDita",
     homeLabel: "MeteoDita — начало",
     searchPlaceholder: "Търси град…",
     searchLabel: "Търсене на град",

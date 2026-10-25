@@ -3,6 +3,7 @@ import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { timeStr } from "../format.js";
+import Drop from "./Drop.jsx";
 
 const HOUR_STEP = HOUR_W + HOUR_GAP;
 
@@ -124,7 +125,7 @@ export default function HourlyStrip({ data, dayIndex }) {
                     hover:bg-white/20 ${hour.past ? "opacity-45" : ""}`}
                 >
                   <div className="text-sm opacity-75">{time}</div>
-                  <div className="my-2 text-2xl">{icon}</div>
+                  <img src={icon} alt={label ?? dict.unknown} className="mx-auto h-12 w-12" />
                   <div className="text-base font-semibold">{temp}</div>
                   {/* The same rules as a day's tile, so the two panels read alike: the
                       full-bleed one ends the temperature, the pale one holds two unlike
@@ -135,7 +136,7 @@ export default function HourlyStrip({ data, dayIndex }) {
                     {/* The chance and the amount are one measurement, so no gap or rule
                         between them: the amount stands right under its chance. */}
                     <div>
-                      <div>💧{fmt.percent(hour.rain)}</div>
+                      <div><Drop />{fmt.percent(hour.rain)}</div>
                       {precip && <div>{precip}</div>}
                     </div>
                     {/* An hour whose wind went missing has nothing below the rule to divide. */}

@@ -5,7 +5,7 @@ import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 import { HOUR_W, HOUR_GAP } from "../hours.js";
 import { MERGE } from "../merge.js";
-import { CODES } from "../weatherCodes.js";
+import { weatherFor } from "../weatherCodes.js";
 
 // A ten-day forecast, generated instead of stored so the fixture stays readable. The
 // run starts on 26 July and rolls over into August, which is why the dates are counted
@@ -100,6 +100,11 @@ const fetchStub = vi.fn(defaultFetch);
 
 const show = () => render(<SettingsProvider><App /></SettingsProvider>);
 
+// The top panel's tiles' pictures. An icon name with no file behind it leaves no address,
+// and the browser draws a broken image.
+const tileIcons = () => [...document.querySelectorAll(".tile")]
+  .map(tile => tile.querySelector("img")?.getAttribute("src"));
+
 // jsdom has no geolocation at all, so it is added rather than replaced.
 const stubGeolocation = () => {
   const getCurrentPosition = vi.fn(onOk =>
@@ -188,7 +193,9 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getAllByText("💧 1.2 мм")).toHaveLength(10);
+    const amounts = within(forecastPanel).getAllByText("1.2 мм");
+    expect(amounts).toHaveLength(10);
+    expect(amounts.every(amount => amount.querySelector("img")?.getAttribute("src"))).toBe(true);
     expect(screen.getByRole("button", { name: /^Днес, 26 юли:.*, валежи 1\.2 мм$/ }))
       .toBeTruthy();
   });
@@ -211,10 +218,12 @@ describe("the app", () => {
     await screen.findByText("София, България");
     const tiles = within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
       .getAllByRole("button");
-    expect(within(tiles[0]).getByText(CODES[0].icon)).toBeTruthy();
-    expect(within(tiles[0]).getByText("💧 0.0 мм")).toBeTruthy();
-    expect(within(tiles[1]).getByText(CODES[80].icon)).toBeTruthy(); // showers: the sky is cloudless
-    expect(within(tiles[1]).getByText("💧 3.0 мм")).toBeTruthy();
+    const iconOf = tile => tile.querySelector("img").getAttribute("src");
+    expect(iconOf(tiles[0])).toBe(weatherFor(0, "bg").icon);
+    expect(within(tiles[0]).getByText("0.0 мм")).toBeTruthy();
+    // Showers, the sky being cloudless; 3 mm in the day is light, so one drop.
+    expect(iconOf(tiles[1])).toBe(weatherFor(80, "bg").icon);
+    expect(within(tiles[1]).getByText("3.0 мм")).toBeTruthy();
   });
 
   it("prints a dry day's nought, and leaves only a missing total blank", async () => {
@@ -230,7 +239,7 @@ describe("the app", () => {
     show();
     await screen.findByText("София, България");
     const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
-    expect(within(forecastPanel).getByText("💧 0.0 мм")).toBeTruthy();
+    expect(within(forecastPanel).getByText("0.0 мм")).toBeTruthy();
     expect(within(forecastPanel).getAllByText(/мм$/)).toHaveLength(1);
   });
 
@@ -241,6 +250,8 @@ describe("the app", () => {
     expect(screen.getByText("Въздух · Задоволително")).toBeTruthy();
     expect(screen.getByText("1013 хПа")).toBeTruthy();
     expect(screen.getByText("24 км")).toBeTruthy();
+    expect(tileIcons()).toHaveLength(10);
+    expect(tileIcons().every(Boolean)).toBe(true);
   });
 
   it("keeps today's strip whole and fades the hours already gone", async () => {
@@ -397,6 +408,8 @@ describe("the app", () => {
     expect(screen.getByText("Макс.")).toBeTruthy();
     expect(screen.getByText("Количество")).toBeTruthy();
     expect(screen.queryByText("Влажност")).toBeNull();
+    expect(tileIcons()).toHaveLength(10);
+    expect(tileIcons().every(Boolean)).toBe(true);
     const strip = screen.getByRole("region", { name: "Почасова прогноза" });
     expect(within(strip).getAllByText(/^\d\d:00$/)).toHaveLength(24);
 
@@ -456,8 +469,19 @@ describe("the app", () => {
     // The units and the footer's lead-in go back to English with the rest.
     expect(screen.getByText("1013 hPa")).toBeTruthy();
     expect(screen.getByText("24 km")).toBeTruthy();
-    expect(screen.getAllByText("💧 1.2 mm")).toHaveLength(10);
+    expect(screen.getAllByText("1.2 mm")).toHaveLength(10);
     expect(screen.getByText(/^Weather data: · ICON/)).toBeTruthy();
+  });
+
+  it("draws the navbar's sun, pin and radar, and names the buttons in words", async () => {
+    show();
+    await screen.findByText("София, България");
+    const drawn = [
+      screen.getByRole("link", { name: "MeteoDita — начало" }),
+      screen.getByRole("button", { name: "Моето местоположение" }),
+      screen.getByRole("button", { name: "Радар за валежи" })
+    ].map(el => el.querySelector("img")?.getAttribute("src"));
+    expect(drawn.every(Boolean)).toBe(true);
   });
 
   it("returns to the home city when the brand is clicked", async () => {

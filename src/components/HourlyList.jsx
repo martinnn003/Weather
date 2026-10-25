@@ -3,6 +3,7 @@ import { useSettings } from "../settings.jsx";
 import { weatherFor } from "../weatherCodes.js";
 import { hoursForDay } from "../hours.js";
 import { timeStr } from "../format.js";
+import Drop from "./Drop.jsx";
 
 // The phone's hours, opened in the day list under the day they belong to. The page there
 // already scrolls down, so the hours run down too: all of them in reach of a thumb,
@@ -51,17 +52,17 @@ export default function HourlyList({ data, dayIndex }) {
             key={hour.time}
             title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
               + (precip ? ` · ${precip}` : "") + (wind ? ` · ${wind}` : "")}
-            className={`grid grid-cols-[2.5rem_1.75rem_minmax(0,1fr)_3rem_4rem] items-center
+            className={`grid grid-cols-[2.5rem_2.5rem_minmax(0,1fr)_3rem_4rem] items-center
               gap-x-2 py-2 text-sm ${i || past.length ? "border-t border-white/15" : ""}
               ${hour.past ? "opacity-45" : ""}`}
           >
             <div className="opacity-75">{time}</div>
-            <div className="text-center text-xl leading-none">{icon}</div>
+            <img src={icon} alt={label ?? dict.unknown} className="-my-2 h-10 w-10" />
             <div className="font-semibold">{temp}</div>
             {/* The amount goes under its chance: on one line the two do not fit a 360px
                 phone without squeezing every column and the wind out from under the day's. */}
             <div className="text-xs whitespace-nowrap opacity-80">
-              <div>💧{fmt.percent(hour.rain)}</div>
+              <div><Drop />{fmt.percent(hour.rain)}</div>
               {precip && <div>{precip}</div>}
             </div>
             <div className="text-xs whitespace-nowrap opacity-80">{wind}</div>

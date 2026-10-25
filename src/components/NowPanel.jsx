@@ -1,5 +1,5 @@
 import { useSettings } from "../settings.jsx";
-import { weatherFor } from "../weatherCodes.js";
+import { iconUrl, weatherFor } from "../weatherCodes.js";
 import { aqiBand, timeStr } from "../format.js";
 
 // Today shows live readings; a selected future day shows that day's aggregates.
@@ -12,16 +12,16 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
     // UV runs out about five days ahead; a later day has none, and a 0 would claim a dark one.
     const uv = daily.uv_index_max?.[dayIndex];
     return [
-      ["⬆️", dict.high, fmt.temp(daily.temperature_2m_max[dayIndex])],
-      ["⬇️", dict.low, fmt.temp(daily.temperature_2m_min[dayIndex])],
-      ["🌡️", dict.feelsLike, fmt.temp(daily.apparent_temperature_max[dayIndex])],
-      ["💨", windFrom == null ? dict.wind : fmt.windLabel(windFrom), fmt.wind(daily.wind_speed_10m_max[dayIndex])],
-      ...(gusts == null ? [] : [["🌪️", dict.gusts, fmt.wind(gusts)]]),
-      ...(uv == null ? [] : [["😎", dict.uv, fmt.num(uv)]]),
-      ["🌧️", dict.precip, fmt.percent(daily.precipitation_probability_max[dayIndex] ?? 0)],
-      ["☔", dict.precipTotal, fmt.rain(daily.precipitation_sum[dayIndex] ?? 0)],
-      ["🌅", dict.sunrise, timeStr(daily.sunrise[dayIndex])],
-      ["🌇", dict.sunset, timeStr(daily.sunset[dayIndex])]
+      ["thermometer-warmer", dict.high, fmt.temp(daily.temperature_2m_max[dayIndex])],
+      ["thermometer-colder", dict.low, fmt.temp(daily.temperature_2m_min[dayIndex])],
+      ["thermometer", dict.feelsLike, fmt.temp(daily.apparent_temperature_max[dayIndex])],
+      ["wind", windFrom == null ? dict.wind : fmt.windLabel(windFrom), fmt.wind(daily.wind_speed_10m_max[dayIndex])],
+      ...(gusts == null ? [] : [["windsock", dict.gusts, fmt.wind(gusts)]]),
+      ...(uv == null ? [] : [["uv-index", dict.uv, fmt.num(uv)]]),
+      ["umbrella", dict.precip, fmt.percent(daily.precipitation_probability_max[dayIndex] ?? 0)],
+      ["raindrop-measure", dict.precipTotal, fmt.rain(daily.precipitation_sum[dayIndex] ?? 0)],
+      ["sunrise", dict.sunrise, timeStr(daily.sunrise[dayIndex])],
+      ["sunset", dict.sunset, timeStr(daily.sunset[dayIndex])]
     ];
   }
 
@@ -33,18 +33,18 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
   const rainMax = daily.precipitation_probability_max?.[0];
   const withPeak = (label, peak) => (peak == null ? label : `${label} · ${dict.dayPeak} ${peak}`);
   return [
-    ["🌡️", dict.feelsLike, fmt.temp(current.apparent_temperature)],
-    ["💧", dict.humidity, fmt.percent(current.relative_humidity_2m)],
-    ["💨", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
-    ["🧭", dict.pressure, fmt.pressure(current.pressure_msl)],
-    ...(current.visibility == null ? [] : [["👁️", dict.visibility, fmt.distance(current.visibility)]]),
-    ...(current.uv_index == null ? [] : [["😎",
+    ["thermometer", dict.feelsLike, fmt.temp(current.apparent_temperature)],
+    ["humidity", dict.humidity, fmt.percent(current.relative_humidity_2m)],
+    ["wind", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
+    ["barometer", dict.pressure, fmt.pressure(current.pressure_msl)],
+    ...(current.visibility == null ? [] : [["mist", dict.visibility, fmt.distance(current.visibility)]]),
+    ...(current.uv_index == null ? [] : [["uv-index",
       withPeak(dict.uv, uvMax == null ? null : fmt.num(uvMax)), fmt.num(current.uv_index)]]),
-    ...(current.precipitation_probability == null ? [] : [["🌧️",
+    ...(current.precipitation_probability == null ? [] : [["umbrella",
       withPeak(dict.precip, rainMax == null ? null : fmt.percent(rainMax)), fmt.percent(current.precipitation_probability)]]),
-    ...(aqi == null ? [] : [["🍃", `${dict.air} · ${dict.aqi[aqiBand(aqi)]}`, fmt.num(aqi)]]),
-    ["🌅", dict.sunrise, timeStr(daily.sunrise[0])],
-    ["🌇", dict.sunset, timeStr(daily.sunset[0])]
+    ...(aqi == null ? [] : [["leaves", `${dict.air} · ${dict.aqi[aqiBand(aqi)]}`, fmt.num(aqi)]]),
+    ["sunrise", dict.sunrise, timeStr(daily.sunrise[0])],
+    ["sunset", dict.sunset, timeStr(daily.sunset[0])]
   ];
 }
 
@@ -95,22 +95,30 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
                 aria-label={saved ? dict.favRemove : dict.favAdd}
                 onClick={onToggleSave}
               >
-                {saved ? "★" : "☆"}
+                <img src={iconUrl(saved ? "star" : "star-outline")} alt="" className="h-[18px] w-[18px]" />
               </button>
               <button type="button" className="icon-btn icon-btn-sm" title={dict.shareLabel}
-                aria-label={dict.shareLabel} onClick={onShare}>🔗</button>
+                aria-label={dict.shareLabel} onClick={onShare}>
+                <img src={iconUrl("link")} alt="" className="h-[18px] w-[18px]" />
+              </button>
             </div>
           </div>
 
           <p className="mt-1 text-sm opacity-80">{subtitle}</p>
           <div className="mt-4 text-6xl leading-none font-light sm:text-7xl">{headline}{fmt.unitLetter}</div>
-          <div className="mt-1.5 opacity-90">{icon} {label ?? dict.unknown}</div>
+          {/* The icon's square has a wide margin of its own, so it is drawn large and
+              pulled in, and its cloud lines up under the reading. */}
+          <div className="mt-1.5 flex items-center justify-center gap-1 opacity-90 lg:justify-start">
+            <img src={icon} alt="" className="-my-2 h-10 w-10 lg:-ml-2" />
+            {label ?? dict.unknown}
+          </div>
         </div>
 
         <div className="tiles w-full min-w-0 lg:flex-1 lg:[&>*]:basis-[calc((100%-2.5rem)/5)]">
           {tilesFor(data, aqi, day, dict, fmt).map(([tileIcon, tileLabel, value]) => (
             <div key={tileLabel} className="tile">
-              <div className="text-lg">{tileIcon}</div>
+              {/* Drawn large and pulled in, like the weather's icon: the square is mostly margin. */}
+              <img src={iconUrl(tileIcon)} alt="" className="mx-auto -my-2 h-12 w-12" />
               <div className="mt-0.5 font-bold">{value}</div>
               <div className="mt-0.5 text-[0.7rem] opacity-75">{tileLabel}</div>
             </div>

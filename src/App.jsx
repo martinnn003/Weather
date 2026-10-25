@@ -98,7 +98,7 @@ export default function App() {
   // Home is the page the app opens on, not the last city looked at — that one is in
   // storage already, so returning to it would leave the brand looking like dead text.
   // Asking the browser for a position instead would put a permission prompt behind a
-  // logo, which is not what a logo is for; the 📍 button is there for that. Already at
+  // logo, which is not what a logo is for; the pin button is there for that. Already at
   // home, the forecast is asked for again: setting the same place changes nothing, so a
   // home page that failed to load would otherwise stay empty under a logo that looks dead.
   const goHome = useCallback(() => {

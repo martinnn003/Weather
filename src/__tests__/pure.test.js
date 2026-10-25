@@ -1,6 +1,7 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { I18N, LANGS, pickLang } from "../i18n.js";
-import { CODES, groupFor, weatherFor } from "../weatherCodes.js";
+import { CODES, groupFor, iconUrl, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
@@ -18,7 +19,9 @@ describe("translations", () => {
       for (const language of LANGS) {
         expect(entry[language], `code ${code} in ${language}`).toBeTruthy();
       }
-      expect(entry.icon).toBeTruthy();
+      // A name with no file behind it would draw a broken image.
+      expect(iconUrl(entry.icon), `icon for ${code}`).toBeTruthy();
+      if (entry.night) expect(iconUrl(entry.night), `night icon for ${code}`).toBeTruthy();
     }
   });
 
@@ -46,20 +49,29 @@ describe("translations", () => {
 
 describe("weather codes", () => {
   it("uses the night icon only where one is defined", () => {
-    expect(weatherFor(0, "bg", false).icon).toBe("🌙");
-    expect(weatherFor(0, "bg", true).icon).toBe("☀️");
+    expect(weatherFor(0, "bg", false).icon).toBe(iconUrl("clear-night"));
+    expect(weatherFor(0, "bg", true).icon).toBe(iconUrl("clear-day"));
     expect(weatherFor(63, "bg", false).icon).toBe(weatherFor(63, "bg", true).icon);
   });
 
-  it("puts a sun into falling weather only for showers, and only by day", () => {
+  it("puts a sun into falling weather only for showers, and a moon in its place by night", () => {
     const sunny = Object.keys(CODES).map(Number)
-      .filter(code => code >= 51 && weatherFor(code, "bg").icon === "🌦️");
-    expect(sunny).toEqual([80, 81]);
-    expect(sunny.map(code => weatherFor(code, "bg", false).icon)).toEqual(["🌧️", "🌧️"]);
+      .filter(code => code >= 51 && CODES[code].icon.includes("-day"));
+    expect(sunny).toEqual([80, 81, 85]);
+    expect(sunny.map(code => CODES[code].night.includes("-night"))).toEqual([true, true, true]);
+  });
+
+  it("draws light, moderate and heavy rain with one, three and five drops", () => {
+    // The drops are the icons' own: Meteocons draws three for every grade.
+    const drops = name => readFileSync(new URL(`../icons/${name}.svg`, import.meta.url), "utf8")
+      .match(/stroke-linecap="round" stroke-width="7"/g)?.length ?? 0;
+    expect([61, 63, 65].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
+    expect([80, 81, 82].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
+    expect([80, 81].map(code => drops(CODES[code].night))).toEqual([1, 3]);
   });
 
   it("falls back for an unknown code", () => {
-    expect(weatherFor(1234, "en")).toEqual({ icon: "❓", label: null });
+    expect(weatherFor(1234, "en")).toEqual({ icon: iconUrl("not-available"), label: null });
   });
 
   it("maps codes to background groups", () => {
