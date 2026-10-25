@@ -30,11 +30,14 @@ export const MERGE = {
   icons: {
     // mm: an hour from this much on, or a day from this much on, shows falling weather.
     wetHour: 0.1,
-    wetDay: 0.2,
+    wetDay: 0.1,
     // % cloud cover: under 20 clear, under 50 mostly clear, up to 80 partly cloudy, over it overcast.
     clouds: [20, 50, 80],
-    // Rain by its water, mm an hour: light under 2.5, heavy from 7.6, moderate between.
-    rainRates: [2.5, 7.6],
+    // Rain by its water, mm an hour: light under 1, heavy from 2.5, moderate between. The
+    // icons draw one, three and five drops for the three.
+    rainRates: [1, 2.5],
+    // A day's rain by its total, mm: light under 5, heavy from 15, moderate between.
+    dayRain: [5, 15],
     // Snow by its depth, cm an hour: light under 1.3, moderate up to 2.5, heavy above it.
     snowRates: [1.3, 2.5],
     // Local hours, both included, whose mean cloud cover is a dry day's sky.
@@ -62,19 +65,22 @@ const sky = cover => {
   return cover <= partly ? 2 : 3;
 };
 
-// `rain` is mm an hour of water, `snow` cm an hour of ECMWF's snowfall: any snow makes it
-// snow, graded by its own depth, since a millimetre of water can fall as a centimetre of it.
-// `cover` is the sky's cloud cover, in %: rain from a sky with breaks in it falls as
-// showers, the only rain drawn with a sun, and from an overcast one, or an unknown one,
-// as rain. Grading rain by sky rather than by rate is the point: nearly every wet hour is
-// light, and grading by rate once put a sun into overcast and into the middle of the night.
-const falling = (rain, snow, cover) => {
+// How hard rain falls, 0 light to 2 heavy, from its millimetres and the two lines between
+// the grades: `rainRates` for an hour's, `dayRain` for a day's total.
+const rainGrade = (rain, [light, heavy]) => (rain < light ? 0 : rain < heavy ? 1 : 2);
+
+// `grade` is the rain's, from `rainGrade`; `snow` is cm an hour of ECMWF's
+// snowfall: any snow makes it snow, graded by its own depth, since a millimetre of water
+// can fall as a centimetre of it. `cover` is the sky's cloud cover, in %: rain from a sky
+// with breaks in it falls as showers, the only rain drawn with a sun, and from an overcast
+// one, or an unknown one, as rain. Choosing showers by sky rather than by rate is the
+// point: nearly every wet hour is light, and choosing by rate once put a sun into overcast
+// and into the middle of the night.
+const falling = (grade, snow, cover) => {
   if (snow > 0) {
     const [light, heavy] = MERGE.icons.snowRates;
     return snow < light ? 71 : snow <= heavy ? 73 : 75;
   }
-  const [light, heavy] = MERGE.icons.rainRates;
-  const grade = rain < light ? 0 : rain < heavy ? 1 : 2;
   const showers = cover != null && sky(cover) < 3;
   return (showers ? [80, 81, 82] : [61, 63, 65])[grade];
 };
@@ -88,7 +94,7 @@ function hourCode(model, rain, snow, cover, cape) {
   if (rain == null) return model; // nothing to hold the model to
   if (rain >= MERGE.icons.wetHour) {
     const storm = isStorm(model) && (cape == null || cape >= MERGE.icons.stormCape);
-    return storm ? model : falling(rain, snow, cover);
+    return storm ? model : falling(rainGrade(rain, MERGE.icons.rainRates), snow, cover);
   }
   if (isFog(model)) return model;
   if (cover != null) return sky(cover);
@@ -133,8 +139,10 @@ function dominant(bearings, speeds) {
 }
 
 // A day's icon, built like an hour's from the rain printed under it: falling weather from
-// the day's total, snow if ECMWF had any, a storm if one of its wet hours was one, its
-// heaviest hour for how hard, and its daytime sky for showers or rain. That sky, the mean
+// the day's total, snow if ECMWF had any, a storm if one of its wet hours was one, the
+// total again for how hard the rain, its heaviest hour for how hard the snow, and its
+// daytime sky for showers or rain. Graded by its heaviest hour, a day of light rain from
+// morning to night, 18 mm, drew lighter rain than one hour of 3 mm. That sky, the mean
 // cloud cover over `daytime`, is also a dry day's icon, unless fog held most of those
 // hours: a foggy morning alone is not a foggy day.
 function dayIcon(hours, hourly, rain) {
@@ -150,9 +158,8 @@ function dayIcon(hours, hourly, rain) {
   if (rain >= wetDay) {
     const storms = codes.filter(isStorm);
     if (storms.length) return max(storms);
-    const hourRain = hours.map(i => hourly.precipitation[i]).filter(v => v != null);
     const hourSnow = hours.map(i => hourly.snowfall[i]).filter(v => v != null);
-    return falling(max(hourRain), max(hourSnow), cover);
+    return falling(rainGrade(rain, MERGE.icons.dayRain), max(hourSnow), cover);
   }
   const fog = day.map(i => hourly.weather_code[i]).filter(isFog);
   if (fog.length * 2 > day.length) return max(fog);

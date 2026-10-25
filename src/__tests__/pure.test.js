@@ -339,7 +339,7 @@ describe("building the icons from the merged readings", () => {
   it("shows no 🌦️ over 0 mm, whatever the model's code says", () => {
     const { hourly, daily } = icons();
     expect(daily.precipitation_sum[0]).toBe(0);
-    expect(weatherFor(daily.weather_code[0], "bg").icon).toBe(CODES[0].icon);
+    expect(daily.weather_code[0]).toBe(0);
     expect(hourly.weather_code.slice(0, 24).every(code => code === 0)).toBe(true);
   });
 
@@ -351,29 +351,47 @@ describe("building the icons from the merged readings", () => {
       ...overcast
     });
     expect(daily.precipitation_sum[0]).toBe(3);
-    expect(weatherFor(daily.weather_code[0], "bg").icon).toBe(CODES[61].icon);
-    expect(hourly.weather_code[15]).toBe(61);
+    expect(daily.weather_code[0]).toBe(61); // 3 mm in the day is light rain
+    expect(hourly.weather_code[15]).toBe(63); // and a millimetre in the hour moderate
     expect(hourly.weather_code[12]).toBe(3); // dry before it, under the same closed sky
   });
 
-  it("leaves an hour under 0.1 mm dry, and a day under 0.2 mm", () => {
-    // Two hours of 0.05 mm on the first day, two of 0.1 mm on the second.
-    const { hourly, daily } = icons(ecmwfRain((h, d) => (h === 14 || h === 15 ? [0.05, 0.1][d] ?? 0 : 0)));
+  it("leaves an hour or a day under 0.1 mm dry", () => {
+    // One hour of 0.04 mm on the first day, one of 0.1 mm on the second, and two of
+    // 0.05 mm on the third: dry hours, but a day of 0.1 mm, which is what it prints.
+    const wet = [[0.04], [0.1], [0.05, 0.05]];
+    const { hourly, daily } = icons(ecmwfRain((h, d) => wet[d]?.[h - 14] ?? 0));
+    expect(daily.precipitation_sum.slice(0, 3)).toEqual([0, 0.1, 0.1]);
     expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([0, 0]);
     // Showers, under the default sky of 10% cloud.
     expect([hourly.weather_code[24 + 14], daily.weather_code[1]]).toEqual([80, 80]);
+    expect([hourly.weather_code[48 + 14], daily.weather_code[2]]).toEqual([0, 80]);
   });
 
-  it("grades a day's rain and showers by its heaviest hour", () => {
-    const rain = ecmwfRain((h, d) => (h === 14 ? [1, 3, 8][d] ?? 0 : 0));
-    expect(icons({ ...rain, ...overcast }).daily.weather_code.slice(0, 3)).toEqual([61, 63, 65]);
-    expect(icons(rain).daily.weather_code.slice(0, 3)).toEqual([80, 81, 82]);
+  it("grades an hour's rain by its rate: under 1 mm, to 2.5, from 2.5", () => {
+    const rates = [0.9, 1, 2.4, 2.5];
+    const rain = ecmwfRain(h => rates[h - 8] ?? 0);
+    expect(icons({ ...rain, ...overcast }).hourly.weather_code.slice(8, 12)).toEqual([61, 63, 63, 65]);
+    expect(icons(rain).hourly.weather_code.slice(8, 12)).toEqual([80, 81, 81, 82]);
+  });
+
+  it("grades a day's rain and showers by its total: under 5 mm, to 15, from 15", () => {
+    // Each day's hours from midnight on. Day five is twenty light hours, and rains harder
+    // than day six, whose one hour of 8 mm is heavy.
+    const wet = [[4.9], [5], [7, 7.9], [7, 8], Array(20).fill(0.9), [8]];
+    const rain = ecmwfRain((h, d) => wet[d]?.[h] ?? 0);
+    const { hourly, daily } = icons({ ...rain, ...overcast });
+    expect(daily.precipitation_sum).toEqual([4.9, 5, 14.9, 15, 18, 8]);
+    expect(daily.weather_code).toEqual([61, 63, 63, 65, 65, 63]);
+    // The hours keep their own grades, by the hour's rate.
+    expect([hourly.weather_code[4 * 24], hourly.weather_code[5 * 24]]).toEqual([61, 65]);
+    expect(icons(rain).daily.weather_code).toEqual([80, 81, 81, 82, 82, 81]);
   });
 
   it("rains as showers under a sky with breaks, and as rain under a closed one", () => {
-    // A millimetre every hour; the sky 80% on either side of noon, 81% from noon on.
+    // Half a millimetre every hour; the sky 80% on either side of noon, 81% from noon on.
     const { hourly } = icons({
-      ...ecmwfRain(() => 1),
+      ...ecmwfRain(() => 0.5),
       [`cloud_cover_${MERGE.icon}`]: sixDays(h => (h < 12 ? 80 : 81))
     });
     expect([hourly.weather_code[11], hourly.weather_code[12]]).toEqual([80, 61]);
@@ -426,7 +444,8 @@ describe("building the icons from the merged readings", () => {
       [`cape_${MERGE.icon}`]: sixDays((h, d) => [99, 100][d] ?? null),
       ...ecmwfRain(h => (h === 14 ? 2 : 0))
     });
-    expect([0, 1, 2].map(d => hourly.weather_code[d * 24 + 14])).toEqual([80, 95, 95]);
+    // 2 mm is a moderate hour but a light day.
+    expect([0, 1, 2].map(d => hourly.weather_code[d * 24 + 14])).toEqual([81, 95, 95]);
     expect(daily.weather_code.slice(0, 3)).toEqual([80, 95, 95]);
 
     // The CAPE that judges is the calling model's: ECMWF's, once the seam has ended.
@@ -437,7 +456,7 @@ describe("building the icons from the merged readings", () => {
       ...ecmwfRain(() => 1)
     });
     expect([late.weather_code[MERGE.seam.end - 1], late.weather_code[MERGE.seam.end]])
-      .toEqual([95, 80]);
+      .toEqual([95, 81]);
   });
 
   it("asks ICON Global about storms until the seam ends, and ECMWF after", () => {
@@ -447,7 +466,7 @@ describe("building the icons from the merged readings", () => {
       ...overcast
     });
     expect(hourly.weather_code[MERGE.seam.end - 1]).toBe(95);
-    expect(hourly.weather_code[MERGE.seam.end]).toBe(61);
+    expect(hourly.weather_code[MERGE.seam.end]).toBe(63);
   });
 
   it("reads a dry hour's sky off the cloud cover", () => {
