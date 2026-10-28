@@ -20,6 +20,8 @@ export function hoursForDay(data, dayIndex) {
     rows.push({
       time,
       temp: hourly.temperature_2m[i],
+      // How the hour feels for its wind, damp and sun. Optional, like the wind.
+      feels: hourly.apparent_temperature?.[i],
       code: hourly.weather_code[i],
       isDay: hourly.is_day[i] === 1,
       rain: hourly.precipitation_probability[i],

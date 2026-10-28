@@ -41,24 +41,33 @@ export default function HourlyList({ data, dayIndex }) {
         const { icon, label } = weatherFor(hour.code, lang, hour.isDay);
         const time = timeStr(hour.time);
         const temp = fmt.temp(hour.temp);
+        const feels = hour.feels != null ? `${dict.feelsShort} ${fmt.temp(hour.feels)}` : null;
         // A missing reading stays blank: Math.round(null) would print a confident 0.
         const wind = hour.wind != null ? fmt.wind(hour.wind) : null;
         // A dry hour prints its 0.0 as a dry day does; only a missing one is left blank.
         const precip = hour.precip != null ? fmt.rain(hour.precip) : null;
         // The last column is the day row's, at the same inset, so each hour's wind stands
-        // under the day's.
+        // under the day's. The icon's column is narrower than the icon, whose square is
+        // mostly margin, and the gaps are tight: on a 360px phone that is what gives the
+        // temperature's column room for a winter's "усещ. -10°" beside the rain.
         return (
           <div
             key={hour.time}
-            title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
+            title={`${time} · ${label ?? dict.unknown} · ${temp}` + (feels ? ` (${feels})` : "")
+              + ` · 💧${fmt.percent(hour.rain)}`
               + (precip ? ` · ${precip}` : "") + (wind ? ` · ${wind}` : "")}
-            className={`grid grid-cols-[2.5rem_2.5rem_minmax(0,1fr)_3rem_4rem] items-center
-              gap-x-2 py-2 text-sm ${i || past.length ? "border-t border-white/15" : ""}
+            className={`grid grid-cols-[2.5rem_2rem_minmax(0,1fr)_3rem_4rem] items-center
+              gap-x-1.5 py-2 text-sm ${i || past.length ? "border-t border-white/15" : ""}
               ${hour.past ? "opacity-45" : ""}`}
           >
             <div className="opacity-75">{time}</div>
-            <img src={icon} alt={label ?? dict.unknown} className="-my-2 h-10 w-10" />
-            <div className="font-semibold">{temp}</div>
+            <img src={icon} alt={label ?? dict.unknown} className="-mx-1 -my-2 h-10 w-10 max-w-none" />
+            {/* How the hour feels goes under its temperature, in the small type of the
+                amount under its chance, so the row grows no taller. A missing one is blank. */}
+            <div className="whitespace-nowrap">
+              <div className="font-semibold">{temp}</div>
+              {feels && <div className="text-xs opacity-75">{feels}</div>}
+            </div>
             {/* The amount goes under its chance: on one line the two do not fit a 360px
                 phone without squeezing every column and the wind out from under the day's. */}
             <div className="text-xs whitespace-nowrap opacity-80">

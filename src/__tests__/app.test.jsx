@@ -260,6 +260,8 @@ describe("the app", () => {
     expect(screen.getByText("Въздух · Задоволително")).toBeTruthy();
     expect(screen.getByText("1013 хПа")).toBeTruthy();
     expect(screen.getByText("24 км")).toBeTruthy();
+    // The big number is now's, and so is this: the label ties the two together.
+    expect(screen.getByText("Сега се усеща като")).toBeTruthy();
     expect(tileIcons()).toHaveLength(10);
     expect(tileIcons().every(Boolean)).toBe(true);
   });
@@ -285,6 +287,32 @@ describe("the app", () => {
     expect(within(cellFor("10:00")).getByText("14 км/ч")).toBeTruthy();
     expect(within(cellFor("15:00")).getByText("19 км/ч")).toBeTruthy();
     expect(cellFor("15:00").title).toContain("19 км/ч");
+  });
+
+  it("says under every hour's temperature how it feels", async () => {
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    expect(within(strip).getAllByText(/^усещ\. -?\d+°$/)).toHaveLength(24);
+    // Tomorrow at 15:00 is 25.5°, and feels a degree warmer.
+    const cellFor = time => within(strip).getByText(time).closest("div[title]");
+    expect(within(cellFor("15:00")).getByText("26°")).toBeTruthy();
+    expect(within(cellFor("15:00")).getByText("усещ. 27°")).toBeTruthy();
+    expect(cellFor("15:00").title).toContain("26° (усещ. 27°)");
+  });
+
+  it("leaves an hour's feel blank when the forecast has none", async () => {
+    const plain = { ...forecast, hourly: { ...forecast.hourly, apparent_temperature: undefined } };
+    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      ? answer(plain)
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    fireEvent.click(screen.getByRole("button", { name: /^Утре/ }));
+    const strip = await screen.findByRole("region", { name: "Почасова прогноза" });
+    expect(within(strip).getAllByText(/^\d\d:00$/)).toHaveLength(24);
+    expect(within(strip).queryByText(/усещ\./)).toBeNull();
   });
 
   it("leaves an hour's wind blank when the forecast has none", async () => {
@@ -418,7 +446,9 @@ describe("the app", () => {
     expect(screen.getByText("Макс.")).toBeTruthy();
     expect(screen.getByText("Количество")).toBeTruthy();
     expect(screen.queryByText("Влажност")).toBeNull();
-    expect(tileIcons()).toHaveLength(10);
+    // A day's feel is left to its hours: one figure would stand for the whole day.
+    expect(screen.queryByText("Сега се усеща като")).toBeNull();
+    expect(tileIcons()).toHaveLength(9);
     expect(tileIcons().every(Boolean)).toBe(true);
     const strip = screen.getByRole("region", { name: "Почасова прогноза" });
     expect(within(strip).getAllByText(/^\d\d:00$/)).toHaveLength(24);
@@ -442,6 +472,9 @@ describe("the app", () => {
     expect(within(hourList()).queryByRole("button")).toBeNull(); // a day ahead has nothing gone
     const rowFor = time => within(hourList()).getByText(time).closest("div[title]");
     expect(within(rowFor("15:00")).getByText("0.3 мм")).toBeTruthy();
+    // Day 3 at 15:00 is 27.5° and feels 28.5°.
+    expect(within(rowFor("15:00")).getByText("28°")).toBeTruthy();
+    expect(within(rowFor("15:00")).getByText("усещ. 29°")).toBeTruthy();
     expect(within(rowFor("10:00")).getByText("0.0 мм")).toBeTruthy();
 
     const today = () => within(forecastPanel).getByRole("button", { name: /^Днес/ });
@@ -458,6 +491,42 @@ describe("the app", () => {
     fireEvent.click(today());
     fireEvent.click(today());
     expect(times()[0]).toBe("18:00");
+  });
+
+  it("opens a picked day's summary under it on a phone, and leaves the top panel on now", async () => {
+    vi.stubGlobal("matchMedia", () =>
+      ({ matches: false, addEventListener() {}, removeEventListener() {} }));
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    fireEvent.click(within(forecastPanel).getAllByRole("button")[3]);
+
+    // The panel still reads the moment: now's 26.0°, not the day's high, and no date.
+    expect(screen.getByText("Прогноза за времето за 10 дни")).toBeTruthy();
+    expect(screen.queryByText("сряда, 29 юли")).toBeNull();
+    expect(screen.getByText("26.0°C")).toBeTruthy();
+    expect(screen.getByText("Влажност")).toBeTruthy();
+
+    // Under the day, over its hours: what the row leaves out, and nothing it already says.
+    const summary = within(forecastPanel).getByRole("region", { name: "Обобщение за деня" });
+    const hours = within(forecastPanel).getByRole("region", { name: "Почасова прогноза" });
+    expect(summary.compareDocumentPosition(hours) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    for (const label of ["Пориви", "UV индекс", "Валежи", "Изгрев", "Залез"]) {
+      expect(within(summary).getByText(label)).toBeTruthy();
+    }
+    for (const label of ["Макс.", "Мин.", "Количество", "Сега се усеща като"]) {
+      expect(within(summary).queryByText(label)).toBeNull();
+    }
+    expect(within(summary).getByText("06:05")).toBeTruthy();
+    expect([...summary.querySelectorAll("img")].every(img => img.getAttribute("src"))).toBe(true);
+
+    // Past UV's reach the tile is left out, not shown as a 0.
+    fireEvent.click(within(forecastPanel).getAllByRole("button")[9]);
+    const lastDay = within(forecastPanel).getByRole("region", { name: "Обобщение за деня" });
+    expect(within(lastDay).queryByText("UV индекс")).toBeNull();
+
+    fireEvent.click(within(forecastPanel).getAllByRole("button")[9]); // deselect
+    expect(within(forecastPanel).queryByRole("region", { name: "Обобщение за деня" })).toBeNull();
   });
 
   it("switches units", async () => {

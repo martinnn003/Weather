@@ -1,29 +1,13 @@
 import { useSettings } from "../settings.jsx";
 import { iconUrl, weatherFor } from "../weatherCodes.js";
 import { aqiBand, timeStr } from "../format.js";
+import { dayTiles } from "../dayTiles.js";
 
 // Today shows live readings; a selected future day shows that day's aggregates.
 function tilesFor(data, aqi, dayIndex, dict, fmt) {
   const { current, daily } = data;
 
-  if (dayIndex > 0) {
-    const gusts = daily.wind_gusts_10m_max?.[dayIndex];
-    const windFrom = daily.wind_direction_10m_dominant?.[dayIndex];
-    // UV runs out about five days ahead; a later day has none, and a 0 would claim a dark one.
-    const uv = daily.uv_index_max?.[dayIndex];
-    return [
-      ["thermometer-warmer", dict.high, fmt.temp(daily.temperature_2m_max[dayIndex])],
-      ["thermometer-colder", dict.low, fmt.temp(daily.temperature_2m_min[dayIndex])],
-      ["thermometer", dict.feelsLike, fmt.temp(daily.apparent_temperature_max[dayIndex])],
-      ["wind", windFrom == null ? dict.wind : fmt.windLabel(windFrom), fmt.wind(daily.wind_speed_10m_max[dayIndex])],
-      ...(gusts == null ? [] : [["windsock", dict.gusts, fmt.wind(gusts)]]),
-      ...(uv == null ? [] : [["uv-index", dict.uv, fmt.num(uv)]]),
-      ["umbrella", dict.precip, fmt.percent(daily.precipitation_probability_max[dayIndex] ?? 0)],
-      ["raindrop-measure", dict.precipTotal, fmt.rain(daily.precipitation_sum[dayIndex] ?? 0)],
-      ["sunrise", dict.sunrise, timeStr(daily.sunrise[dayIndex])],
-      ["sunset", dict.sunset, timeStr(daily.sunset[dayIndex])]
-    ];
-  }
+  if (dayIndex > 0) return dayTiles(data, dayIndex, dict, fmt);
 
   // Every tile here is a reading of the moment, so UV and the chance of rain are too: the
   // day's peak, shown bare among them, read as now and put a UV of 5 on a dark evening.

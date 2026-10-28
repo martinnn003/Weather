@@ -233,8 +233,8 @@ export function mergeForecast(raw, air = null) {
     daily[name] = raw.daily.time.map((_, d) =>
       raw.daily[`${name}_${icon}`]?.[d] ?? raw.daily[`${name}_${ecmwf}`]?.[d] ?? null);
   }
-  const columns = ["temperature_2m_max", "temperature_2m_min", "apparent_temperature_max",
-    "wind_speed_10m_max", "wind_gusts_10m_max", "wind_direction_10m_dominant",
+  const columns = ["temperature_2m_max", "temperature_2m_min", "wind_speed_10m_max",
+    "wind_gusts_10m_max", "wind_direction_10m_dominant",
     "precipitation_sum", "precipitation_probability_max", "uv_index_max", "weather_code"];
   for (const column of columns) daily[column] = [];
 
@@ -246,7 +246,6 @@ export function mergeForecast(raw, air = null) {
 
     daily.temperature_2m_max.push(max(read("temperature_2m")));
     daily.temperature_2m_min.push(min(read("temperature_2m")));
-    daily.apparent_temperature_max.push(max(read("apparent_temperature")));
     daily.wind_speed_10m_max.push(max(read("wind_speed_10m")));
     daily.wind_gusts_10m_max.push(max(read("wind_gusts_10m")));
     daily.wind_direction_10m_dominant.push(dominant(

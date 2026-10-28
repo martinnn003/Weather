@@ -4,6 +4,7 @@ import NowPanel from "./components/NowPanel.jsx";
 import Forecast from "./components/Forecast.jsx";
 import HourlyStrip from "./components/HourlyStrip.jsx";
 import HourlyList from "./components/HourlyList.jsx";
+import DaySummary from "./components/DaySummary.jsx";
 import FavoritesBar from "./components/FavoritesBar.jsx";
 import BackToTop from "./components/BackToTop.jsx";
 import Skeleton from "./components/Skeleton.jsx";
@@ -176,11 +177,14 @@ export default function App() {
 
         {data && (
           <>
+            {/* On a phone the panel keeps to now: a picked day's summary opens under the
+                day instead, where the change can be seen, and coming back up the big
+                figure is still the reading for the moment, not some day's high. */}
             <NowPanel
               data={data}
               aqi={aqi}
               name={name}
-              selectedDay={selectedDay}
+              selectedDay={wide ? selectedDay : null}
               saved={saved}
               onToggleSave={() => toggle(place)}
               onShare={share}
@@ -189,8 +193,12 @@ export default function App() {
               data={data}
               selectedDay={selectedDay}
               onSelect={day => setSelectedDay(current => (current === day ? null : day))}
-              detail={!wide && selectedDay !== null &&
-                <HourlyList data={data} dayIndex={selectedDay} />}
+              detail={!wide && selectedDay !== null && (
+                <>
+                  <DaySummary data={data} dayIndex={selectedDay} />
+                  <HourlyList data={data} dayIndex={selectedDay} />
+                </>
+              )}
             />
             {wide && selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
             {radarOpen && (

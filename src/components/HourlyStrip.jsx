@@ -108,6 +108,7 @@ export default function HourlyStrip({ data, dayIndex }) {
               const { icon, label } = weatherFor(hour.code, lang, hour.isDay);
               const time = timeStr(hour.time);
               const temp = fmt.temp(hour.temp);
+              const feels = hour.feels != null ? `${dict.feelsShort} ${fmt.temp(hour.feels)}` : null;
               // A missing reading stays blank: Math.round(null) would print a confident 0.
               const wind = hour.wind != null ? fmt.wind(hour.wind) : null;
               // A dry hour prints its 0.0 as a dry day does; only a missing one is left blank.
@@ -115,7 +116,8 @@ export default function HourlyStrip({ data, dayIndex }) {
               return (
                 <div
                   key={hour.time}
-                  title={`${time} · ${label ?? dict.unknown} · ${temp} · 💧${fmt.percent(hour.rain)}`
+                  title={`${time} · ${label ?? dict.unknown} · ${temp}` + (feels ? ` (${feels})` : "")
+                    + ` · 💧${fmt.percent(hour.rain)}`
                     + (precip ? ` · ${precip}` : "") + (wind ? ` · ${wind}` : "")}
                   style={{ flex: `0 0 ${HOUR_W}px` }}
                   // No light on hover: an hour opens nothing, and a cell that lit up
@@ -125,6 +127,9 @@ export default function HourlyStrip({ data, dayIndex }) {
                   <div className="text-sm opacity-75">{time}</div>
                   <img src={icon} alt={label ?? dict.unknown} className="mx-auto h-12 w-12" />
                   <div className="text-base font-semibold">{temp}</div>
+                  {/* How the hour feels belongs with its temperature, so it sits above the
+                      rule that ends the temperature, small, as in the phone's list. */}
+                  {feels && <div className="text-xs whitespace-nowrap opacity-75">{feels}</div>}
                   {/* The same rules as a day's tile, so the two panels read alike: the
                       full-bleed one ends the temperature, the pale one holds two unlike
                       measurements apart. Set in the same small type, the chance of rain
