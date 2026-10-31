@@ -57,8 +57,8 @@ describe("weather codes", () => {
   it("puts a sun into falling weather only for showers, and a moon in its place by night", () => {
     const sunny = Object.keys(CODES).map(Number)
       .filter(code => code >= 51 && CODES[code].icon.includes("-day"));
-    expect(sunny).toEqual([80, 81, 85]);
-    expect(sunny.map(code => CODES[code].night.includes("-night"))).toEqual([true, true, true]);
+    expect(sunny).toEqual([80, 81, 85, 86]);
+    expect(sunny.every(code => CODES[code].night.includes("-night"))).toBe(true);
   });
 
   it("draws light, moderate and heavy rain with one, three and five drops", () => {
@@ -68,6 +68,14 @@ describe("weather codes", () => {
     expect([61, 63, 65].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
     expect([80, 81, 82].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
     expect([80, 81].map(code => drops(CODES[code].night))).toEqual([1, 3]);
+  });
+
+  it("draws light, moderate and heavy snow with one, three and five flakes", () => {
+    const flakes = name => readFileSync(new URL(`../icons/${name}.svg`, import.meta.url), "utf8")
+      .match(/fill="#d6ecff"/g)?.length ?? 0;
+    expect([71, 73, 75].map(code => flakes(CODES[code].icon))).toEqual([1, 3, 5]);
+    expect([85, 86].map(code => flakes(CODES[code].icon))).toEqual([1, 3]);
+    expect([85, 86].map(code => flakes(CODES[code].night))).toEqual([1, 3]);
   });
 
   it("falls back for an unknown code", () => {
@@ -342,6 +350,13 @@ const overcast = {
   [`cloud_cover_${MERGE.icon}`]: sixDays(() => 100),
   [`cloud_cover_${MERGE.ecmwf}`]: sixDays(() => 100)
 };
+// Both models' temperature, in °C, from a function of the hour of the day and the day.
+const temps = make => ({
+  [`temperature_2m_${MERGE.icon}`]: sixDays(make),
+  [`temperature_2m_${MERGE.ecmwf}`]: sixDays(make)
+});
+// +1 °C, where ECMWF says what is rain and what snow.
+const between = temps(() => 1);
 
 // By default ICON Global's code has it raining every hour, ECMWF's rainfall is nothing, and
 // the sky is 10% cloud: so unless a test adds rain, every icon below should come out clear.
@@ -416,26 +431,126 @@ describe("building the icons from the merged readings", () => {
     expect(daily.weather_code.slice(0, 2)).toEqual([61, 80]);
   });
 
-  it("makes it snow only where ECMWF has snowfall", () => {
+  it("between 0 and 3 °C, makes it snow only where ECMWF has snowfall", () => {
     const { hourly, daily } = icons({
-      ...ecmwfRain(h => (h === 14 ? 1 : 0)),
-      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.7 : 0)),
-      ...overcast
+      ...ecmwfRain(h => (h === 14 ? 0.5 : 0)),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.35 : 0)),
+      ...overcast,
+      ...between
     });
     expect([hourly.weather_code[14], daily.weather_code[0]]).toEqual([71, 71]);
     expect(daily.weather_code[1]).toBe(61);
   });
 
-  it("grades snow by its own depth an hour, not by its water", () => {
-    // The same millimetre of water each day, falling as 1.2, 1.3, 2.5 and 2.6 cm of snow:
-    // either side of 1.3, where light turns moderate, and of 2.5, where moderate turns heavy.
-    const depths = [1.2, 1.3, 2.5, 2.6];
+  it("grades an hour's snow by its water, as its rain: under 1 mm, to 2.5, from 2.5", () => {
+    // Every hour's water falls as 3 cm of snow, which no longer makes it heavy.
+    const rates = [0.9, 1, 2.4, 2.5];
+    const { hourly } = icons({
+      ...ecmwfRain(h => rates[h - 8] ?? 0),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays(h => (rates[h - 8] ? 3 : 0)),
+      ...overcast,
+      ...between
+    });
+    expect(hourly.weather_code.slice(8, 12)).toEqual([71, 73, 73, 75]);
+  });
+
+  it("grades a day's snow by its total water, as its rain: under 5 mm, to 15, from 15", () => {
+    // Each day's hours from midnight on, all of the water falling as snow. Day five is
+    // twenty light hours, and snows harder than day six's one heavy hour.
+    const wet = [[4.9], [5], [7, 7.9], [7, 8], Array(20).fill(0.9), [8]];
+    const { hourly, daily } = icons({
+      ...ecmwfRain((h, d) => wet[d]?.[h] ?? 0),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (wet[d]?.[h] ?? 0) * 0.7),
+      ...overcast,
+      ...between
+    });
+    expect(daily.precipitation_sum).toEqual([4.9, 5, 14.9, 15, 18, 8]);
+    expect(daily.weather_code).toEqual([71, 73, 73, 75, 75, 73]);
+    expect([hourly.weather_code[4 * 24], hourly.weather_code[5 * 24]]).toEqual([71, 75]);
+  });
+
+  it("snows as showers under a sky with breaks, heavy snow without a sun", () => {
+    // All of the water snow, at -2 °C: hours of 0.9, 1 and 2.5 mm under the default
+    // sky of 10% cloud, and then 0.5 mm an hour under 80% and 81%.
+    const rates = [0.9, 1, 2.5];
+    const snowing = rain => ({
+      ...ecmwfRain(rain),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => rain(h, d) * 0.7),
+      ...temps(() => -2)
+    });
+    const { hourly, daily } = icons(snowing(h => rates[h - 8] ?? 0));
+    expect(hourly.weather_code.slice(8, 11)).toEqual([85, 86, 75]);
+    expect(daily.weather_code[0]).toBe(85); // 4.4 mm in the day, light
+    const { hourly: sky } = icons({
+      ...snowing(() => 0.5),
+      [`cloud_cover_${MERGE.icon}`]: sixDays(h => (h < 12 ? 80 : 81))
+    });
+    expect([sky.weather_code[11], sky.weather_code[12]]).toEqual([85, 71]);
+    expect(weatherFor(86, "bg").label).toBe("Снежни превалявания");
+  });
+
+  it("rains and snows together under a closed cloud, whatever the sky", () => {
+    // Half of the water snow, under the default sky of 10% cloud.
+    const { hourly } = icons({
+      ...ecmwfRain(h => (h === 14 ? 1 : 0)),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays(h => (h === 14 ? 0.35 : 0)),
+      ...between
+    });
+    expect(hourly.weather_code[14]).toBe(69);
+  });
+
+  it("snows at 0 °C and below and rains from 3 °C, whatever ECMWF says", () => {
+    // A millimetre at 14:00 each day. ECMWF calls it rain on the first two days, at 0 and
+    // -5 °C, as it did on Musala at 2925 m, and snow on the third, at 3 °C.
     const { hourly, daily } = icons({
       ...ecmwfRain(h => (h === 14 ? 1 : 0)),
-      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (h === 14 ? depths[d] ?? 0 : 0))
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 2 && h === 14 ? 0.7 : 0)),
+      ...temps((h, d) => [0, -5, 3, 2.9][d] ?? 10),
+      ...overcast
     });
-    expect(daily.weather_code.slice(0, 4)).toEqual([71, 73, 73, 75]);
-    expect([0, 1, 2, 3].map(d => hourly.weather_code[d * 24 + 14])).toEqual([71, 73, 73, 75]);
+    expect([0, 1, 2, 3].map(d => hourly.weather_code[d * 24 + 14])).toEqual([73, 73, 63, 63]);
+    expect(daily.weather_code.slice(0, 4)).toEqual([71, 71, 61, 61]);
+  });
+
+  it("rains and snows together where 25% to 75% of the water is snow", () => {
+    // A millimetre at 14:00 each day, a fifth of it snow, then 30%, 70% and four fifths.
+    const shares = [0.2, 0.3, 0.7, 0.8];
+    const { hourly, daily } = icons({
+      ...ecmwfRain(h => (h === 14 ? 1 : 0)),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (h === 14 ? (shares[d] ?? 0) * 0.7 : 0)),
+      ...overcast,
+      ...between
+    });
+    expect([0, 1, 2, 3].map(d => hourly.weather_code[d * 24 + 14])).toEqual([63, 69, 69, 73]);
+    expect(daily.weather_code.slice(0, 4)).toEqual([61, 68, 68, 71]);
+    expect(weatherFor(69, "bg").label).toBe("Дъжд със сняг");
+  });
+
+  it("grades rain and snow together as rain, an hour's and a day's", () => {
+    // Half of the water snow: hours of 0.9, 1 and 2.5 mm, and days of 4.9, 5 and 15.
+    const wet = [[0.9, 4], [1, 4], [2.5, 12.5]];
+    const { hourly, daily } = icons({
+      ...ecmwfRain((h, d) => wet[d]?.[h] ?? 0),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (wet[d]?.[h] ?? 0) * 0.35),
+      ...between
+    });
+    expect([0, 1, 2].map(d => hourly.weather_code[d * 24])).toEqual([68, 69, 84]);
+    expect(daily.precipitation_sum.slice(0, 3)).toEqual([4.9, 5, 15]);
+    expect(daily.weather_code.slice(0, 3)).toEqual([68, 69, 84]);
+  });
+
+  it("weighs a day's snow by its hours' water, each at its own temperature", () => {
+    // Rain at 10:00, at +5 °C, and snow at 20:00, at -1, whatever ECMWF says of either:
+    // a quarter of the water snow on the first day, three quarters on the second, and a
+    // fifth on the third.
+    const wet = [[3, 1], [1, 3], [2, 0.5]];
+    const { hourly, daily } = icons({
+      ...ecmwfRain((h, d) => (h === 10 ? wet[d]?.[0] : h === 20 ? wet[d]?.[1] : 0) ?? 0),
+      ...temps(h => (h < 15 ? 5 : -1)),
+      ...overcast
+    });
+    expect([hourly.weather_code[10], hourly.weather_code[20]]).toEqual([65, 73]);
+    expect(daily.weather_code.slice(0, 3)).toEqual([68, 71, 61]);
   });
 
   it("keeps the model's storm only where something falls", () => {

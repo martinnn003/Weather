@@ -33,13 +33,17 @@ export const MERGE = {
     wetDay: 0.1,
     // % cloud cover: under 20 clear, under 50 mostly clear, up to 80 partly cloudy, over it overcast.
     clouds: [20, 50, 80],
-    // Rain by its water, mm an hour: light under 1, heavy from 2.5, moderate between. The
-    // icons draw one, three and five drops for the three.
+    // Rain or snow by its water, mm an hour: light under 1, heavy from 2.5, moderate
+    // between. The icons draw one, three and five drops or flakes for the three.
     rainRates: [1, 2.5],
-    // A day's rain by its total, mm: light under 5, heavy from 15, moderate between.
+    // A day's rain or snow by its total water, mm: light under 5, heavy from 15, moderate between.
     dayRain: [5, 15],
-    // Snow by its depth, cm an hour: light under 1.3, moderate up to 2.5, heavy above it.
-    snowRates: [1.3, 2.5],
+    // °C, the temperature shown: at or below the first, whatever falls is snow; from the
+    // second on, rain; between them ECMWF says how much of it is which.
+    snowTemps: [0, 3],
+    // The share of the water that falls as snow: under the first it rains, from the second
+    // on it snows, and between them it rains and snows together.
+    mixShares: [0.25, 0.75],
     // Local hours, both included, whose mean cloud cover is a dry day's sky.
     daytime: [8, 18],
     // J/kg of CAPE, from which a model's storm is believed. ICON Global calls thunder in
@@ -56,6 +60,9 @@ export const MERGE = {
 // WMO codes from here up all fall from the sky: drizzle, rain, snow, showers, storms.
 const FALLING = 51;
 const isStorm = code => code >= 95 && code <= 99;
+// Rain and snow together, light, moderate and heavy. Open-Meteo's codes have none; WMO's
+// full table has 68 and 69 for it, light and the rest, and 84 for heavy showers of it.
+const RAIN_AND_SNOW = [68, 69, 84];
 const isFog = code => code === 45 || code === 48;
 
 const sky = cover => {
@@ -65,36 +72,56 @@ const sky = cover => {
   return cover <= partly ? 2 : 3;
 };
 
-// How hard rain falls, 0 light to 2 heavy, from its millimetres and the two lines between
-// the grades: `rainRates` for an hour's, `dayRain` for a day's total.
+// How hard rain or snow falls, 0 light to 2 heavy, from its millimetres of water and the
+// two lines between the grades: `rainRates` for an hour's, `dayRain` for a day's total.
+// Snow is graded by its water, not its depth, so its icon agrees with the millimetres
+// printed under it, as rain's does.
 const rainGrade = (rain, [light, heavy]) => (rain < light ? 0 : rain < heavy ? 1 : 2);
 
-// `grade` is the rain's, from `rainGrade`; `snow` is cm an hour of ECMWF's
-// snowfall: any snow makes it snow, graded by its own depth, since a millimetre of water
-// can fall as a centimetre of it. `cover` is the sky's cloud cover, in %: rain from a sky
-// with breaks in it falls as showers, the only rain drawn with a sun, and from an overcast
-// one, or an unknown one, as rain. Choosing showers by sky rather than by rate is the
-// point: nearly every wet hour is light, and choosing by rate once put a sun into overcast
-// and into the middle of the night.
-const falling = (grade, snow, cover) => {
-  if (snow > 0) {
-    const [light, heavy] = MERGE.icons.snowRates;
-    return snow < light ? 71 : snow <= heavy ? 73 : 75;
-  }
+// Open-Meteo's snowfall, in cm, is 0.7 of its water in mm.
+const SNOW_CM_A_MM = 0.7;
+
+// The share, 0 to 1, of `rain` mm of water that falls as snow, from ECMWF's `snow` cm of
+// it and the hour's `temp`, in °C. ECMWF tells rain from snow at the height of its own
+// ground, which under a peak is far lower than the peak, while the temperature shown is
+// brought to the place's own height: Musala, 2925 m up, is in a cell of 1985 m, which on
+// 3 November 2026 rained at +1.5 °C under a peak of -3.6. So the temperature decides at
+// either end of `snowTemps`, and ECMWF's split only between them.
+function snowShare(rain, snow, temp) {
+  const [cold, warm] = MERGE.icons.snowTemps;
+  if (temp != null && temp <= cold) return 1;
+  if (temp != null && temp >= warm) return 0;
+  return rain > 0 && snow > 0 ? Math.min(1, snow / SNOW_CM_A_MM / rain) : 0;
+}
+
+// `grade` is how hard it falls, from `rainGrade`; `share` how much of it is snow, from
+// `snowShare`, which `mixShares` makes rain, rain and snow, or snow. `cover` is the sky's
+// cloud cover, in %: rain or snow from a sky with breaks in it falls as showers, the only
+// falling weather drawn with a sun, and from an overcast one, or an unknown one, as rain
+// or snow. Choosing showers by sky rather than by rate is the point: nearly every wet hour
+// is light, and choosing by rate once put a sun into overcast and into the middle of the
+// night. Rain and snow together falls at 0 to 3 °C, nearly always from a closed sky, and
+// has no showers.
+const falling = (grade, share, cover) => {
+  const [mixed, snowy] = MERGE.icons.mixShares;
   const showers = cover != null && sky(cover) < 3;
+  if (share >= snowy) return (showers ? [85, 86, 75] : [71, 73, 75])[grade];
+  if (share >= mixed) return RAIN_AND_SNOW[grade];
   return (showers ? [80, 81, 82] : [61, 63, 65])[grade];
 };
 
 // One hour's icon. Whether anything falls is the merged rain's to say, so an icon can no
-// longer rain over a dry hour or shine over a wet one; snow is ECMWF's snowfall, and the
+// longer rain over a dry hour or shine over a wet one; snow is ECMWF's snowfall, held to
+// the hour's temperature `temp` by `snowShare`, and the
 // sky, dry or wet, is the merged cloud cover. The model's code is kept only where the
 // readings are silent: a storm, if something is falling and the air has the CAPE for one
 // (or no CAPE came to judge by), and fog, if nothing is falling.
-function hourCode(model, rain, snow, cover, cape) {
+function hourCode(model, rain, snow, temp, cover, cape) {
   if (rain == null) return model; // nothing to hold the model to
   if (rain >= MERGE.icons.wetHour) {
     const storm = isStorm(model) && (cape == null || cape >= MERGE.icons.stormCape);
-    return storm ? model : falling(rainGrade(rain, MERGE.icons.rainRates), snow, cover);
+    if (storm) return model;
+    return falling(rainGrade(rain, MERGE.icons.rainRates), snowShare(rain, snow, temp), cover);
   }
   if (isFog(model)) return model;
   if (cover != null) return sky(cover);
@@ -140,10 +167,11 @@ function dominant(bearings, speeds) {
 
 // A day's icon, built like an hour's from the rain printed under it: falling weather from
 // the day's total, snow if ECMWF had any, a storm if one of its wet hours was one, the
-// total again for how hard the rain, its heaviest hour for how hard the snow, and its
-// daytime sky for showers or rain. Graded by its heaviest hour, a day of light rain from
-// morning to night, 18 mm, drew lighter rain than one hour of 3 mm. That sky, the mean
-// cloud cover over `daytime`, is also a dry day's icon, unless fog held most of those
+// total again for how hard, rain or snow, and its daytime sky for showers or rain. Graded
+// by its heaviest hour, a day of light rain from morning to night, 18 mm, drew lighter
+// rain than one hour of 3 mm; graded by the total, the icon agrees with the millimetres
+// printed under it, and 5 and 15 mm of water are about 5 and 15 cm of snow. That sky,
+// the mean cloud cover over `daytime`, is also a dry day's icon, unless fog held most of those
 // hours: a foggy morning alone is not a foggy day.
 function dayIcon(hours, hourly, rain) {
   const { wetDay, daytime: [from, to] } = MERGE.icons;
@@ -158,8 +186,15 @@ function dayIcon(hours, hourly, rain) {
   if (rain >= wetDay) {
     const storms = codes.filter(isStorm);
     if (storms.length) return max(storms);
-    const hourSnow = hours.map(i => hourly.snowfall[i]).filter(v => v != null);
-    return falling(rainGrade(rain, MERGE.icons.dayRain), max(hourSnow), cover);
+    // The day's snow is its hours' snow, each held to its own temperature.
+    let water = 0, snow = 0;
+    for (const i of hours) {
+      const wet = hourly.precipitation[i];
+      if (!(wet > 0)) continue;
+      water += wet;
+      snow += wet * snowShare(wet, hourly.snowfall[i], hourly.temperature_2m[i]);
+    }
+    return falling(rainGrade(rain, MERGE.icons.dayRain), water ? snow / water : 0, cover);
   }
   const fog = day.map(i => hourly.weather_code[i]).filter(isFog);
   if (fog.length * 2 > day.length) return max(fog);
@@ -204,7 +239,7 @@ export function mergeForecast(raw, air = null) {
 
   const modelCode = hourly.weather_code;
   hourly.weather_code = times.map((_, i) => hourCode(modelCode[i], hourly.precipitation[i],
-    hourly.snowfall[i], hourly.cloud_cover[i], hourly.cape[i]));
+    hourly.snowfall[i], hourly.temperature_2m[i], hourly.cloud_cover[i], hourly.cape[i]));
 
   const uvAt = new Map((air?.hourly?.time ?? []).map((time, i) => [time, air.hourly.uv_index?.[i]]));
   hourly.uv_index = times.map(time => uvAt.get(time) ?? null);

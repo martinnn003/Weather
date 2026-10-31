@@ -32,6 +32,10 @@ export const CODES = {
   65: { icon: "rain-5",        en: "Heavy rain",         bg: "Силен дъжд" },
   66: { icon: "rain-1",        en: "Freezing rain",      bg: "Заледяващ дъжд" },
   67: { icon: "rain-5",        en: "Freezing rain",      bg: "Заледяващ дъжд" },
+  // Rain and snow together: the app's own, which Open-Meteo never sends. The icons are
+  // Meteocons' drops and flakes, taking turns: two when light, three, and five when heavy.
+  68: { icon: "sleet-1",       en: "Light rain and snow", bg: "Слаб дъжд със сняг" },
+  69: { icon: "sleet-3",       en: "Rain and snow",      bg: "Дъжд със сняг" },
   71: { icon: "snow-1",        en: "Light snow",         bg: "Слаб снеговалеж" },
   73: { icon: "snow-3",        en: "Snow",               bg: "Снеговалеж" },
   75: { icon: "snow-5",        en: "Heavy snow",         bg: "Силен снеговалеж" },
@@ -40,8 +44,11 @@ export const CODES = {
   81: { icon: "showers-day-3", night: "showers-night-3", en: "Showers", bg: "Превалявания" },
   // A downpour, so no sun; and no thunder either, which is the storm codes' to draw.
   82: { icon: "rain-5",        en: "Heavy showers",      bg: "Силни превалявания" },
-  85: { icon: "snow-showers-day", night: "snow-showers-night", en: "Snow showers", bg: "Снежни превалявания" },
-  86: { icon: "snow-5",        en: "Heavy snow showers", bg: "Силни снежни превалявания" },
+  84: { icon: "sleet-5",       en: "Heavy rain and snow", bg: "Силен дъжд със сняг" },
+  // Snow showers, as rain's, light and moderate; heavy ones are heavy snow, 75, under a
+  // dark cloud. WMO's 86 is moderate or heavy, and is drawn here as moderate.
+  85: { icon: "snow-showers-day-1", night: "snow-showers-night-1", en: "Light snow showers", bg: "Слаби снежни превалявания" },
+  86: { icon: "snow-showers-day-3", night: "snow-showers-night-3", en: "Snow showers", bg: "Снежни превалявания" },
   95: { icon: "thunderstorms", en: "Thunderstorm",       bg: "Гръмотевична буря" },
   96: { icon: "thunderstorms-hail", en: "Thunderstorm, hail", bg: "Буря с градушка" },
   99: { icon: "thunderstorms-extreme-hail", en: "Severe storm, hail", bg: "Силна буря с градушка" }
