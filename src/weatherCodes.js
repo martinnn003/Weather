@@ -3,14 +3,31 @@
 // be moving at once, and a falling drop cannot be counted. Counting is the point: rain and
 // snow fall from one drop or flake when light, three when moderate, and five under a dark
 // cloud when heavy. Meteocons draws every grade with three, so those counts are this
-// app's own, and so are the drops' lighter blue and the flakes' size, which the page's
-// dark backgrounds swallowed. The navbar, the top panel's tiles and buttons and the drop
-// beside every chance and amount of rain take their icons from the same folder, by name;
-// theirs are lightened the same way, and the arrows under sunrise and sunset, the air's
-// leaves, lifted from grid-eco, the saved city's yellow star, the link, the pin and the
-// radar are the app's too.
+// app's own, and so are the drops and flakes themselves. Its upright strokes in a row read
+// as a fence, and its flake, a few pixels across on a tile, as a dot: the drops lean in
+// the wind, shorter, with every other one set lower, and the flakes are six thick arms,
+// twice the size, in two rows when there are five. Both are drawn in a lighter colour,
+// which the page's dark backgrounds swallowed otherwise. The navbar, the top panel's tiles
+// and buttons and the drop beside every chance and amount of rain take their icons from
+// the same folder, by name; theirs are lightened the same way, and the arrows under
+// sunrise and sunset, the air's leaves, lifted from grid-eco, the saved city's yellow
+// star, the link, the pin and the radar are the app's too.
 const ICONS = import.meta.glob("./icons/*.svg", { eager: true, query: "?url", import: "default" });
 export const iconUrl = name => ICONS[`./icons/${name}.svg`];
+
+// The one icon that moves: the top panel's, for the weather at the moment, where the label
+// beside it already says how hard it falls, so nothing needs counting. The rain and snow
+// icons carry their own animation, off until the drawing is given class="anim", and an
+// <img> cannot be given a class, so these few are read as text and handed over inline.
+// Anyone who has asked their device for less motion keeps the still one.
+const MOVING = import.meta.glob(
+  ["./icons/rain-*.svg", "./icons/showers-*.svg", "./icons/snow-*.svg", "./icons/sleet-*.svg"],
+  { eager: true, query: "?raw", import: "default" });
+const movingUrl = name => {
+  const svg = MOVING[`./icons/${name}.svg`];
+  if (!svg || globalThis.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return iconUrl(name);
+  return "data:image/svg+xml," + encodeURIComponent(svg.replace("<svg ", '<svg class="anim" '));
+};
 
 // WMO weather codes → icons plus a label per language. `night` is optional and only
 // differs where the day's icon has a sun in it. The sun goes into falling weather only for
@@ -54,11 +71,13 @@ export const CODES = {
   99: { icon: "thunderstorms-extreme-hail", en: "Severe storm, hail", bg: "Силна буря с градушка" }
 };
 
-// `icon` is the image's address.
-export function weatherFor(code, lang, isDay = true) {
+// `icon` is the image's address; `moving` asks for the falling rain or snow, which only the
+// weather at the moment gets.
+export function weatherFor(code, lang, isDay = true, moving = false) {
   const entry = CODES[code];
   if (!entry) return { icon: iconUrl("not-available"), label: null };
-  return { icon: iconUrl(!isDay && entry.night ? entry.night : entry.icon), label: entry[lang] };
+  const name = !isDay && entry.night ? entry.night : entry.icon;
+  return { icon: moving ? movingUrl(name) : iconUrl(name), label: entry[lang] };
 }
 
 // Maps a code to a background theme group.

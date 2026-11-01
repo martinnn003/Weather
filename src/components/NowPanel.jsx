@@ -38,9 +38,10 @@ export default function NowPanel({ data, aqi, name, selectedDay, saved, onToggle
   const day = selectedDay ?? 0;
   const isDay = current.is_day === 1;
 
+  // Only the moment's rain or snow falls; a picked day's stays still, like its tile.
   const { icon, label } = day > 0
     ? weatherFor(daily.weather_code[day], lang)
-    : weatherFor(current.weather_code, lang, isDay);
+    : weatherFor(current.weather_code, lang, isDay, true);
 
   // Read in UTC, like the forecast strip: a date means that day wherever the place is,
   // and parsing it pins it to UTC midnight, which a browser west of Greenwich would

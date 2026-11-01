@@ -61,21 +61,36 @@ describe("weather codes", () => {
     expect(sunny.every(code => CODES[code].night.includes("-night"))).toBe(true);
   });
 
+  // The drops and flakes are the icons' own: Meteocons draws three for every grade.
+  const svgOf = name => readFileSync(new URL(`../icons/${name}.svg`, import.meta.url), "utf8");
+  const drops = name => svgOf(name).match(/class="drop"/g)?.length ?? 0;
+  const flakes = name => svgOf(name).match(/class="flake"/g)?.length ?? 0;
+
   it("draws light, moderate and heavy rain with one, three and five drops", () => {
-    // The drops are the icons' own: Meteocons draws three for every grade.
-    const drops = name => readFileSync(new URL(`../icons/${name}.svg`, import.meta.url), "utf8")
-      .match(/stroke-linecap="round" stroke-width="7"/g)?.length ?? 0;
     expect([61, 63, 65].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
     expect([80, 81, 82].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
     expect([80, 81].map(code => drops(CODES[code].night))).toEqual([1, 3]);
   });
 
   it("draws light, moderate and heavy snow with one, three and five flakes", () => {
-    const flakes = name => readFileSync(new URL(`../icons/${name}.svg`, import.meta.url), "utf8")
-      .match(/fill="#d6ecff"/g)?.length ?? 0;
     expect([71, 73, 75].map(code => flakes(CODES[code].icon))).toEqual([1, 3, 5]);
     expect([85, 86].map(code => flakes(CODES[code].icon))).toEqual([1, 3]);
     expect([85, 86].map(code => flakes(CODES[code].night))).toEqual([1, 3]);
+  });
+
+  it("draws rain and snow with drops and flakes taking turns", () => {
+    expect([68, 69, 84].map(code => drops(CODES[code].icon) + flakes(CODES[code].icon))).toEqual([2, 3, 5]);
+    expect([68, 69, 84].every(code => drops(CODES[code].icon) && flakes(CODES[code].icon))).toBe(true);
+  });
+
+  it("lets only the moment's rain and snow fall", () => {
+    const moving = code => weatherFor(code, "en", true, true).icon;
+    const decoded = code => decodeURIComponent(moving(code).split(",")[1]);
+    expect(decoded(63)).toContain('<svg class="anim" ');
+    expect(decoded(86)).toContain('<svg class="anim" ');
+    // Still everywhere else: the tiles, and weather with nothing falling.
+    expect(weatherFor(63, "en").icon).toBe(iconUrl("rain-3"));
+    expect(moving(0)).toBe(iconUrl("clear-day"));
   });
 
   it("falls back for an unknown code", () => {
