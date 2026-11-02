@@ -75,10 +75,3 @@ export async function fetchPlaceName(id, lang) {
   const place = await fetchPlace(id, lang);
   return [place.name, place.country].filter(Boolean).join(", ");
 }
-
-export async function fetchRadarFrame() {
-  const index = await getJson("https://api.rainviewer.com/public/weather-maps.json");
-  const frame = index.radar?.past?.at(-1);
-  if (!frame) throw new Error("No radar frame available");
-  return { url: `${index.host}${frame.path}/256/{z}/{x}/{y}/2/1_1.png`, time: frame.time * 1000 };
-}

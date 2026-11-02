@@ -117,12 +117,6 @@
   .scroll-x::-webkit-scrollbar { height: 0; }
 }
 
-/* Leaflet paints its own surface; match the panel instead of its default grey. */
-.radar-map .leaflet-container {
-  background: #263543;
-  font-family: inherit;
-}
-
 @media (prefers-reduced-motion: reduce) {
   .skeleton-block, .enter { animation: none; }
 }

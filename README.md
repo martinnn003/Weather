@@ -1,12 +1,12 @@
 # ☀️ Weather
 
 A weather app built with React, Vite and Tailwind: current conditions, a 10-day
-forecast, an hourly breakdown and a precipitation radar for any city in the world.
+forecast, an hourly breakdown and a precipitation forecast map for any city in the world.
 No API key, no account.
 
 Live data comes from [Open-Meteo](https://open-meteo.com/) (free, no registration).
-Leaflet powers the radar and is code-split into its own chunk, so it only downloads
-when the radar is opened.
+The precipitation map is [Windy](https://www.windy.com/)'s free embed, loaded only
+when it is opened.
 
 ## Features
 
@@ -23,8 +23,9 @@ when the radar is opened.
   Today's hourly strip starts at the current hour, not at midnight.
 - **Temperature curve** — an SVG line over the hourly strip, with markers on the
   day's high and low. Every value is also labelled in the cell below it.
-- **Precipitation radar** — the 🛰️ button opens a RainViewer radar layer on an
-  OpenStreetMap base (Leaflet is loaded lazily, only on first use).
+- **Precipitation forecast map** — the radar button opens Windy's embedded map on the
+  city: ECMWF's rain from now to seven days ahead (the free embed's limit), with its
+  own timeline and play button, in the page's language and units.
 - **Saved cities** — the ☆ button pins the current city to a chip bar for one-click
   switching; saved names follow the interface language too.
 - **Shareable links** — every city has an address of its own, `/plovdiv-bulgaria-728193`,
@@ -119,8 +120,9 @@ The data sources, none of which need an account or a key:
   index (CAMS; neither forecast model has UV), requested in parallel with the
   forecast. UV reaches about five days; a day it does not fully cover has no UV tile.
   It is optional: if it fails, those tiles are left out and nothing else is affected.
-- `api.rainviewer.com` + `tile.openstreetmap.org` — radar frames and the base map,
-  used only while the radar panel is open.
+- `embed.windy.com` — the precipitation forecast map, an iframe drawn only while its
+  panel is open. RainViewer's radar was dropped: its free API keeps only the last two
+  hours and forecasts nothing ahead.
 
 Open-Meteo returns [WMO weather codes](https://open-meteo.com/en/docs); `CODES` in
 `src/weatherCodes.js` maps each one to an emoji icon and a label per language, with a
@@ -190,6 +192,4 @@ The same hook names the chips in the saved-cities bar.
 - Weather, geocoding and air quality by [Open-Meteo](https://open-meteo.com/) under
   [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/); the forecast models are
   DWD's ICON and ECMWF's IFS, and the air quality and UV are CAMS (Copernicus).
-- Radar imagery by [RainViewer](https://www.rainviewer.com/), base map
-  © [OpenStreetMap](https://www.openstreetmap.org/copyright) contributors, rendered
-  with [Leaflet](https://leafletjs.com/).
+- Precipitation forecast map by [Windy](https://www.windy.com/).

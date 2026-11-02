@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import Navbar from "./components/Navbar.jsx";
 import NowPanel from "./components/NowPanel.jsx";
 import Forecast from "./components/Forecast.jsx";
@@ -7,6 +7,7 @@ import HourlyList from "./components/HourlyList.jsx";
 import DaySummary from "./components/DaySummary.jsx";
 import FavoritesBar from "./components/FavoritesBar.jsx";
 import BackToTop from "./components/BackToTop.jsx";
+import RadarPanel from "./components/RadarPanel.jsx";
 import Skeleton from "./components/Skeleton.jsx";
 import { useSettings } from "./settings.jsx";
 import { useWeather } from "./hooks/useWeather.js";
@@ -19,8 +20,6 @@ import { smooth } from "./motion.js";
 import {
   DEFAULT_PLACE, loadPlace, placeFromCity, placeFromUrl, samePlace, savePlace, syncUrl
 } from "./place.js";
-
-const RadarPanel = lazy(() => import("./components/RadarPanel.jsx"));
 
 const firstPlace = () => placeFromUrl(location.pathname, location.search) ?? loadPlace() ?? DEFAULT_PLACE;
 
@@ -201,11 +200,7 @@ export default function App() {
               )}
             />
             {wide && selectedDay !== null && <HourlyStrip data={data} dayIndex={selectedDay} />}
-            {radarOpen && (
-              <Suspense fallback={<section className="panel opacity-80">{dict.radarLoading}</section>}>
-                <RadarPanel lat={place.lat} lon={place.lon} onShown={revealRadar} />
-              </Suspense>
-            )}
+            {radarOpen && <RadarPanel lat={place.lat} lon={place.lon} onShown={revealRadar} />}
           </>
         )}
       </main>

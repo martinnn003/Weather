@@ -93,18 +93,8 @@ const defaultFetch = url => {
   if (url.includes("/v1/search")) {
     return respond({ results: [{ id: 728193, name: "Plovdiv", country: "Bulgaria", admin1: "Plovdiv", latitude: 42.15, longitude: 24.75 }] });
   }
-  if (url.includes("rainviewer")) {
-    return respond({ host: "https://tilecache.rainviewer.com", radar: { past: [{ path: "/v2/radar/1", time: 1785085200 }] } });
-  }
   throw new Error(`unexpected request: ${url}`);
 };
-
-// Leaflet draws into a box jsdom never lays out. The radar's tests ask only where the
-// panel is, so the map is a stand-in that takes every call and draws nothing.
-vi.mock("leaflet", () => {
-  const map = { setView: () => map, remove: () => {} };
-  return { default: { map: () => map, tileLayer: () => ({ addTo: () => {} }) } };
-});
 
 const fetchStub = vi.fn(defaultFetch);
 
@@ -558,7 +548,7 @@ describe("the app", () => {
     const drawn = [
       screen.getByRole("link", { name: "MeteoDita — начало" }),
       screen.getByRole("button", { name: "Моето местоположение" }),
-      screen.getByRole("button", { name: "Радар за валежи" })
+      screen.getByRole("button", { name: "Карта с прогноза за валежите" })
     ].map(el => el.querySelector("img")?.getAttribute("src"));
     expect(drawn.every(Boolean)).toBe(true);
   });
@@ -570,22 +560,44 @@ describe("the app", () => {
     try {
       show();
       await screen.findByText("София, България");
-      const radarButton = screen.getByRole("button", { name: "Радар за валежи" });
+      const radarButton = screen.getByRole("button", { name: "Карта с прогноза за валежите" });
 
       fireEvent.click(radarButton);
-      const radar = await screen.findByRole("region", { name: "Радар за валежи" });
+      const radar = await screen.findByRole("region", { name: "Карта с прогноза за валежите" });
       await waitFor(() => expect(scrolledTo).toEqual([radar]));
 
       fireEvent.change(screen.getByRole("combobox"), { target: { value: "Plovdiv" } });
       fireEvent.click(await screen.findByRole("option", { name: /Plovdiv/ }, { timeout: 2000 }));
       await screen.findByText("Пловдив, България");
-      await screen.findByRole("region", { name: "Радар за валежи" });
+      await screen.findByRole("region", { name: "Карта с прогноза за валежите" });
       expect(scrolledTo).toHaveLength(1); // drawn again for the new city, and left where it is
 
       fireEvent.click(radarButton);
-      expect(screen.queryByRole("region", { name: "Радар за валежи" })).toBeNull();
+      expect(screen.queryByRole("region", { name: "Карта с прогноза за валежите" })).toBeNull();
       fireEvent.click(radarButton);
       await waitFor(() => expect(scrolledTo).toHaveLength(2)); // asked for again, so shown again
+    } finally {
+      delete Element.prototype.scrollIntoView;
+    }
+  });
+
+  it("opens Windy's rain forecast on the city, in the page's language and units", async () => {
+    Element.prototype.scrollIntoView = () => {};
+    try {
+      show();
+      await screen.findByText("София, България");
+      fireEvent.click(screen.getByRole("button", { name: "°F" }));
+      fireEvent.click(screen.getByRole("button", { name: "Карта с прогноза за валежите" }));
+      const panel = await screen.findByRole("region", { name: "Карта с прогноза за валежите" });
+      const map = panel.querySelector("iframe");
+      const url = new URL(map.getAttribute("src"));
+      expect(url.origin).toBe("https://embed.windy.com");
+      expect(Object.fromEntries(url.searchParams)).toMatchObject({
+        overlay: "rain", product: "ecmwf", calendar: "now", lang: "bg",
+        metricTemp: "°F", metricRain: "in", metricWind: "mph"
+      });
+      expect(Number(url.searchParams.get("lat"))).toBeCloseTo(42.7, 0);
+      expect(Number(url.searchParams.get("lon"))).toBeCloseTo(23.3, 0);
     } finally {
       delete Element.prototype.scrollIntoView;
     }
