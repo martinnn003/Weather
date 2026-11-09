@@ -11,7 +11,9 @@
 // and buttons and the drop beside every chance and amount of rain take their icons from
 // the same folder, by name; theirs are lightened the same way, and the arrows under
 // sunrise and sunset, the air's leaves, lifted from grid-eco, the saved city's yellow
-// star, the link, the pin and the radar are the app's too.
+// star, the link, the pin and the radar are the app's too. So is fog: Meteocons' cloud
+// over two lines read as a cloud on a tile, so fog is four bands with no cloud, densest at
+// the ground, and visibility, whose three lines looked like it, is an eye.
 const ICONS = import.meta.glob("./icons/*.svg", { eager: true, query: "?url", import: "default" });
 export const iconUrl = name => ICONS[`./icons/${name}.svg`];
 

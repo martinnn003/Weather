@@ -21,7 +21,7 @@ function tilesFor(data, aqi, dayIndex, dict, fmt) {
     ["humidity", dict.humidity, fmt.percent(current.relative_humidity_2m)],
     ["wind", fmt.windLabel(current.wind_direction_10m), fmt.wind(current.wind_speed_10m)],
     ["barometer", dict.pressure, fmt.pressure(current.pressure_msl)],
-    ...(current.visibility == null ? [] : [["mist", dict.visibility, fmt.distance(current.visibility)]]),
+    ...(current.visibility == null ? [] : [["eye", dict.visibility, fmt.distance(current.visibility)]]),
     ...(current.uv_index == null ? [] : [["uv-index",
       withPeak(dict.uv, uvMax == null ? null : fmt.num(uvMax)), fmt.num(current.uv_index)]]),
     ...(current.precipitation_probability == null ? [] : [["umbrella",
