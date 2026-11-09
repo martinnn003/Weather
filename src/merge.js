@@ -49,9 +49,11 @@ export const MERGE = {
     // % cloud cover: under 20 clear, under 50 mostly clear, up to 80 partly cloudy, over it overcast.
     clouds: [20, 50, 80],
     // Rain or snow by its water, mm an hour: light under 1, heavy from 2.5, moderate
-    // between. The icons draw one, three and five drops or flakes for the three.
-    rainRates: [1, 2.5],
-    // A day's rain or snow by its total water, mm: light under 5, heavy from 15, moderate between.
+    // between, and light split at 0.5, since 0.1 and 0.9 mm are not the same rain. The
+    // icons draw one, two, three and five drops or flakes for the four.
+    rainRates: [0.5, 1, 2.5],
+    // A day's rain or snow by its total water, mm: light under 5, heavy from 15, moderate
+    // between. A day has no two-drop grade: its icons draw one, three and five.
     dayRain: [5, 15],
     // °C, the temperature shown: at or below the first, whatever falls is snow; from the
     // second on, rain; between them ECMWF says how much of it is which.
@@ -75,9 +77,19 @@ export const MERGE = {
 // WMO codes from here up all fall from the sky: drizzle, rain, snow, showers, storms.
 const FALLING = 51;
 const isStorm = code => code >= 95 && code <= 99;
-// Rain and snow together, light, moderate and heavy. Open-Meteo's codes have none; WMO's
-// full table has 68 and 69 for it, light and the rest, and 84 for heavy showers of it.
-const RAIN_AND_SNOW = [68, 69, 84];
+// The codes for each grade of `rainRates`, one, two, three and five drops or flakes. The
+// two-drop grade is the app's own: Open-Meteo never sends 62, 72, 83 or 87, and WMO's
+// full table has no grade between light and moderate. Rain and snow together has no
+// two-drop icon, as its light one already draws a drop and a flake; Open-Meteo's codes
+// have none of it, and WMO's full table has 68 and 69 for it, light and the rest, and 84
+// for heavy showers of it.
+const GRADES = {
+  rain: [61, 62, 63, 65], showers: [80, 83, 81, 82],
+  snow: [71, 72, 73, 75], snowShowers: [85, 87, 86, 75],
+  mixed: [68, 68, 69, 84]
+};
+// A day's grades, from `dayRain`, are the hour's light, moderate and heavy.
+const DAY_GRADES = [0, 2, 3];
 const isFog = code => code === 45 || code === 48;
 
 const sky = cover => {
@@ -87,11 +99,11 @@ const sky = cover => {
   return cover <= partly ? 2 : 3;
 };
 
-// How hard rain or snow falls, 0 light to 2 heavy, from its millimetres of water and the
-// two lines between the grades: `rainRates` for an hour's, `dayRain` for a day's total.
-// Snow is graded by its water, not its depth, so its icon agrees with the millimetres
-// printed under it, as rain's does.
-const rainGrade = (rain, [light, heavy]) => (rain < light ? 0 : rain < heavy ? 1 : 2);
+// How hard rain or snow falls, from 0, from its millimetres of water and the lines between
+// the grades, the number of them it reaches: `rainRates` for an hour's, 0 to 3, and
+// `dayRain` for a day's total, 0 to 2. Snow is graded by its water, not its depth, so its
+// icon agrees with the millimetres printed under it, as rain's does.
+const rainGrade = (rain, lines) => lines.filter(line => rain >= line).length;
 
 // Open-Meteo's snowfall, in cm, is 0.7 of its water in mm.
 const SNOW_CM_A_MM = 0.7;
@@ -109,7 +121,7 @@ function snowShare(rain, snow, temp) {
   return rain > 0 && snow > 0 ? Math.min(1, snow / SNOW_CM_A_MM / rain) : 0;
 }
 
-// `grade` is how hard it falls, from `rainGrade`; `share` how much of it is snow, from
+// `grade` is how hard it falls, 0 to 3, an hour's grade; `share` how much of it is snow, from
 // `snowShare`, which `mixShares` makes rain, rain and snow, or snow. `cover` is the sky's
 // cloud cover, in %: rain or snow from a sky with breaks in it falls as showers, the only
 // falling weather drawn with a sun, and from an overcast one, or an unknown one, as rain
@@ -120,9 +132,9 @@ function snowShare(rain, snow, temp) {
 const falling = (grade, share, cover) => {
   const [mixed, snowy] = MERGE.icons.mixShares;
   const showers = cover != null && sky(cover) < 3;
-  if (share >= snowy) return (showers ? [85, 86, 75] : [71, 73, 75])[grade];
-  if (share >= mixed) return RAIN_AND_SNOW[grade];
-  return (showers ? [80, 81, 82] : [61, 63, 65])[grade];
+  if (share >= snowy) return GRADES[showers ? "snowShowers" : "snow"][grade];
+  if (share >= mixed) return GRADES.mixed[grade];
+  return GRADES[showers ? "showers" : "rain"][grade];
 };
 
 // One hour's icon. Whether anything falls is the merged rain's to say, so an icon can no
@@ -241,7 +253,8 @@ function dayIcon(hours, hourly, rain) {
       water += wet;
       snow += wet * snowShare(wet, hourly.snowfall[i], hourly.temperature_2m[i]);
     }
-    return falling(rainGrade(rain, MERGE.icons.dayRain), water ? snow / water : 0, cover);
+    const grade = DAY_GRADES[rainGrade(rain, MERGE.icons.dayRain)];
+    return falling(grade, water ? snow / water : 0, cover);
   }
   const fog = day.map(i => hourly.weather_code[i]).filter(isFog);
   if (fog.length * 2 > day.length) return max(fog);

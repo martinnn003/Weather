@@ -1,8 +1,8 @@
 // The icons are Meteocons, by Bas Milius (MIT, see icons/LICENSE): the fill set of
 // @meteocons/svg 3.0.0-next.10, held still. Animated, ten days and a day's hours would all
 // be moving at once, and a falling drop cannot be counted. Counting is the point: rain and
-// snow fall from one drop or flake when light, three when moderate, and five under a dark
-// cloud when heavy. Meteocons draws every grade with three, so those counts are this
+// snow fall from one drop or flake when light, two when light to moderate (an hour of 0.5
+// to 1 mm), three when moderate, and five under a dark cloud when heavy. Meteocons draws every grade with three, so those counts are this
 // app's own, and so are the drops and flakes themselves. Its upright strokes in a row read
 // as a fence, and its flake, a few pixels across on a tile, as a dot: the drops lean in
 // the wind, shorter, with every other one set lower, and the flakes are six thick arms,
@@ -47,6 +47,9 @@ export const CODES = {
   56: { icon: "drizzle",       en: "Freezing drizzle",   bg: "Заледяващ дъждец" },
   57: { icon: "drizzle",       en: "Freezing drizzle",   bg: "Заледяващ дъждец" },
   61: { icon: "rain-1",        en: "Light rain",         bg: "Слаб дъжд" },
+  // The two-drop grades, 0.5 to 1 mm an hour, are the app's own (merge.js), and so are
+  // their two-drop and two-flake icons.
+  62: { icon: "rain-2",        en: "Light to moderate rain", bg: "Слаб до умерен дъжд" },
   63: { icon: "rain-3",        en: "Rain",               bg: "Дъжд" },
   65: { icon: "rain-5",        en: "Heavy rain",         bg: "Силен дъжд" },
   66: { icon: "rain-1",        en: "Freezing rain",      bg: "Заледяващ дъжд" },
@@ -56,11 +59,13 @@ export const CODES = {
   68: { icon: "sleet-1",       en: "Light rain and snow", bg: "Слаб дъжд със сняг" },
   69: { icon: "sleet-3",       en: "Rain and snow",      bg: "Дъжд със сняг" },
   71: { icon: "snow-1",        en: "Light snow",         bg: "Слаб снеговалеж" },
+  72: { icon: "snow-2",        en: "Light to moderate snow", bg: "Слаб до умерен снеговалеж" },
   73: { icon: "snow-3",        en: "Snow",               bg: "Снеговалеж" },
   75: { icon: "snow-5",        en: "Heavy snow",         bg: "Силен снеговалеж" },
   77: { icon: "snow-1",        en: "Snow grains",        bg: "Снежни зърна" },
   80: { icon: "showers-day-1", night: "showers-night-1", en: "Light showers", bg: "Слаби превалявания" },
   81: { icon: "showers-day-3", night: "showers-night-3", en: "Showers", bg: "Превалявания" },
+  83: { icon: "showers-day-2", night: "showers-night-2", en: "Light to moderate showers", bg: "Слаби до умерени превалявания" },
   // A downpour, so no sun; and no thunder either, which is the storm codes' to draw.
   82: { icon: "rain-5",        en: "Heavy showers",      bg: "Силни превалявания" },
   84: { icon: "sleet-5",       en: "Heavy rain and snow", bg: "Силен дъжд със сняг" },
@@ -68,6 +73,7 @@ export const CODES = {
   // dark cloud. WMO's 86 is moderate or heavy, and is drawn here as moderate.
   85: { icon: "snow-showers-day-1", night: "snow-showers-night-1", en: "Light snow showers", bg: "Слаби снежни превалявания" },
   86: { icon: "snow-showers-day-3", night: "snow-showers-night-3", en: "Snow showers", bg: "Снежни превалявания" },
+  87: { icon: "snow-showers-day-2", night: "snow-showers-night-2", en: "Light to moderate snow showers", bg: "Слаби до умерени снежни превалявания" },
   95: { icon: "thunderstorms", en: "Thunderstorm",       bg: "Гръмотевична буря" },
   96: { icon: "thunderstorms-hail", en: "Thunderstorm, hail", bg: "Буря с градушка" },
   99: { icon: "thunderstorms-extreme-hail", en: "Severe storm, hail", bg: "Силна буря с градушка" }
@@ -87,7 +93,7 @@ export function groupFor(code) {
   if (code <= 1) return "clear";
   if (code <= 3) return "clouds";
   if (code === 45 || code === 48) return "fog";
-  if ((code >= 71 && code <= 77) || code === 85 || code === 86) return "snow";
+  if ((code >= 71 && code <= 77) || (code >= 85 && code <= 87)) return "snow";
   if (code >= 95) return "storm";
   return "rain";
 }

@@ -57,7 +57,7 @@ describe("weather codes", () => {
   it("puts a sun into falling weather only for showers, and a moon in its place by night", () => {
     const sunny = Object.keys(CODES).map(Number)
       .filter(code => code >= 51 && CODES[code].icon.includes("-day"));
-    expect(sunny).toEqual([80, 81, 85, 86]);
+    expect(sunny).toEqual([80, 81, 83, 85, 86, 87]);
     expect(sunny.every(code => CODES[code].night.includes("-night"))).toBe(true);
   });
 
@@ -66,16 +66,19 @@ describe("weather codes", () => {
   const drops = name => svgOf(name).match(/class="drop"/g)?.length ?? 0;
   const flakes = name => svgOf(name).match(/class="flake"/g)?.length ?? 0;
 
-  it("draws light, moderate and heavy rain with one, three and five drops", () => {
-    expect([61, 63, 65].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
-    expect([80, 81, 82].map(code => drops(CODES[code].icon))).toEqual([1, 3, 5]);
-    expect([80, 81].map(code => drops(CODES[code].night))).toEqual([1, 3]);
+  it("draws light, light to moderate, moderate and heavy rain with one, two, three and five drops", () => {
+    expect([61, 62, 63, 65].map(code => drops(CODES[code].icon))).toEqual([1, 2, 3, 5]);
+    expect([80, 83, 81, 82].map(code => drops(CODES[code].icon))).toEqual([1, 2, 3, 5]);
+    expect([80, 83, 81].map(code => drops(CODES[code].night))).toEqual([1, 2, 3]);
   });
 
-  it("draws light, moderate and heavy snow with one, three and five flakes", () => {
-    expect([71, 73, 75].map(code => flakes(CODES[code].icon))).toEqual([1, 3, 5]);
-    expect([85, 86].map(code => flakes(CODES[code].icon))).toEqual([1, 3]);
-    expect([85, 86].map(code => flakes(CODES[code].night))).toEqual([1, 3]);
+  it("draws light, light to moderate, moderate and heavy snow with one, two, three and five flakes", () => {
+    expect([71, 72, 73, 75].map(code => flakes(CODES[code].icon))).toEqual([1, 2, 3, 5]);
+    expect([85, 87, 86].map(code => flakes(CODES[code].icon))).toEqual([1, 2, 3]);
+    expect([85, 87, 86].map(code => flakes(CODES[code].night))).toEqual([1, 2, 3]);
+    expect([62, 72, 83, 87].map(code => weatherFor(code, "bg").label)).toEqual(["Слаб до умерен дъжд",
+      "Слаб до умерен снеговалеж", "Слаби до умерени превалявания", "Слаби до умерени снежни превалявания"]);
+    expect([72, 87].map(groupFor)).toEqual(["snow", "snow"]);
   });
 
   it("draws rain and snow with drops and flakes taking turns", () => {
@@ -463,11 +466,12 @@ describe("building the icons from the merged readings", () => {
     expect([hourly.weather_code[48 + 14], daily.weather_code[2]]).toEqual([0, 80]);
   });
 
-  it("grades an hour's rain by its rate: under 1 mm, to 2.5, from 2.5", () => {
-    const rates = [0.9, 1, 2.4, 2.5];
+  it("grades an hour's rain by its rate: under 0.5 mm, to 1, to 2.5, from 2.5", () => {
+    const rates = [0.4, 0.5, 0.9, 1, 2.4, 2.5];
     const rain = ecmwfRain(h => rates[h - 8] ?? 0);
-    expect(icons({ ...rain, ...overcast }).hourly.weather_code.slice(8, 12)).toEqual([61, 63, 63, 65]);
-    expect(icons(rain).hourly.weather_code.slice(8, 12)).toEqual([80, 81, 81, 82]);
+    expect(icons({ ...rain, ...overcast }).hourly.weather_code.slice(8, 14))
+      .toEqual([61, 62, 62, 63, 63, 65]);
+    expect(icons(rain).hourly.weather_code.slice(8, 14)).toEqual([80, 83, 83, 81, 81, 82]);
   });
 
   it("grades a day's rain and showers by its total: under 5 mm, to 15, from 15", () => {
@@ -478,15 +482,15 @@ describe("building the icons from the merged readings", () => {
     const { hourly, daily } = icons({ ...rain, ...overcast });
     expect(daily.precipitation_sum).toEqual([4.9, 5, 14.9, 15, 18, 8]);
     expect(daily.weather_code).toEqual([61, 63, 63, 65, 65, 63]);
-    // The hours keep their own grades, by the hour's rate.
-    expect([hourly.weather_code[4 * 24], hourly.weather_code[5 * 24]]).toEqual([61, 65]);
+    // The hours keep their own grades, by the hour's rate; a day has no two-drop grade.
+    expect([hourly.weather_code[4 * 24], hourly.weather_code[5 * 24]]).toEqual([62, 65]);
     expect(icons(rain).daily.weather_code).toEqual([80, 81, 81, 82, 82, 81]);
   });
 
   it("rains as showers under a sky with breaks, and as rain under a closed one", () => {
-    // Half a millimetre every hour; the sky 80% on either side of noon, 81% from noon on.
+    // 0.4 mm every hour; the sky 80% on either side of noon, 81% from noon on.
     const { hourly } = icons({
-      ...ecmwfRain(() => 0.5),
+      ...ecmwfRain(() => 0.4),
       [`cloud_cover_${MERGE.icon}`]: sixDays(h => (h < 12 ? 80 : 81))
     });
     expect([hourly.weather_code[11], hourly.weather_code[12]]).toEqual([80, 61]);
@@ -501,8 +505,8 @@ describe("building the icons from the merged readings", () => {
 
   it("between 0 and 3 °C, makes it snow only where ECMWF has snowfall", () => {
     const { hourly, daily } = icons({
-      ...ecmwfRain(h => (h === 14 ? 0.5 : 0)),
-      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.35 : 0)),
+      ...ecmwfRain(h => (h === 14 ? 0.4 : 0)),
+      [`snowfall_${MERGE.ecmwf}`]: sixDays((h, d) => (d === 0 && h === 14 ? 0.28 : 0)),
       ...overcast,
       ...between
     });
@@ -510,16 +514,16 @@ describe("building the icons from the merged readings", () => {
     expect(daily.weather_code[1]).toBe(61);
   });
 
-  it("grades an hour's snow by its water, as its rain: under 1 mm, to 2.5, from 2.5", () => {
+  it("grades an hour's snow by its water, as its rain: under 0.5 mm, to 1, to 2.5, from 2.5", () => {
     // Every hour's water falls as 3 cm of snow, which no longer makes it heavy.
-    const rates = [0.9, 1, 2.4, 2.5];
+    const rates = [0.4, 0.5, 0.9, 1, 2.4, 2.5];
     const { hourly } = icons({
       ...ecmwfRain(h => rates[h - 8] ?? 0),
       [`snowfall_${MERGE.ecmwf}`]: sixDays(h => (rates[h - 8] ? 3 : 0)),
       ...overcast,
       ...between
     });
-    expect(hourly.weather_code.slice(8, 12)).toEqual([71, 73, 73, 75]);
+    expect(hourly.weather_code.slice(8, 14)).toEqual([71, 72, 72, 73, 73, 75]);
   });
 
   it("grades a day's snow by its total water, as its rain: under 5 mm, to 15, from 15", () => {
@@ -534,12 +538,12 @@ describe("building the icons from the merged readings", () => {
     });
     expect(daily.precipitation_sum).toEqual([4.9, 5, 14.9, 15, 18, 8]);
     expect(daily.weather_code).toEqual([71, 73, 73, 75, 75, 73]);
-    expect([hourly.weather_code[4 * 24], hourly.weather_code[5 * 24]]).toEqual([71, 75]);
+    expect([hourly.weather_code[4 * 24], hourly.weather_code[5 * 24]]).toEqual([72, 75]);
   });
 
   it("snows as showers under a sky with breaks, heavy snow without a sun", () => {
     // All of the water snow, at -2 °C: hours of 0.9, 1 and 2.5 mm under the default
-    // sky of 10% cloud, and then 0.5 mm an hour under 80% and 81%.
+    // sky of 10% cloud, and then 0.4 mm an hour under 80% and 81%.
     const rates = [0.9, 1, 2.5];
     const snowing = rain => ({
       ...ecmwfRain(rain),
@@ -547,10 +551,10 @@ describe("building the icons from the merged readings", () => {
       ...temps(() => -2)
     });
     const { hourly, daily } = icons(snowing(h => rates[h - 8] ?? 0));
-    expect(hourly.weather_code.slice(8, 11)).toEqual([85, 86, 75]);
+    expect(hourly.weather_code.slice(8, 11)).toEqual([87, 86, 75]);
     expect(daily.weather_code[0]).toBe(85); // 4.4 mm in the day, light
     const { hourly: sky } = icons({
-      ...snowing(() => 0.5),
+      ...snowing(() => 0.4),
       [`cloud_cover_${MERGE.icon}`]: sixDays(h => (h < 12 ? 80 : 81))
     });
     expect([sky.weather_code[11], sky.weather_code[12]]).toEqual([85, 71]);
