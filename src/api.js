@@ -1,4 +1,4 @@
-import { forecastQuery, mergeForecast } from "./merge.js";
+import { forecastQuery, mergeForecast, rainQuery } from "./merge.js";
 
 // Every endpoint here is free and needs no key. Which models the forecast is asked of,
 // and how their answers are combined, is merge.js's business; only the clock and is_day
@@ -34,17 +34,20 @@ async function getJson(url) {
   }
 }
 
-// The forecast is required; air quality is a bonus that must never break it.
+// The forecast is required; air quality and the other models' rain are bonuses that must
+// never break it. Without the other models, the rain is ECMWF's alone, as it was.
 export async function fetchWeather(lat, lon) {
-  const [weather, air] = await Promise.allSettled([
-    getJson(`https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}${FORECAST}`),
+  const forecast = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}`;
+  const [weather, air, rain] = await Promise.allSettled([
+    getJson(`${forecast}${FORECAST}`),
     getJson("https://air-quality-api.open-meteo.com/v1/air-quality" +
-      `?latitude=${lat}&longitude=${lon}${AIR}`)
+      `?latitude=${lat}&longitude=${lon}${AIR}`),
+    getJson(`${forecast}${rainQuery()}&timezone=auto`)
   ]);
   if (weather.status === "rejected") throw weather.reason;
   const airValue = air.status === "fulfilled" ? air.value : null;
   return {
-    data: mergeForecast(weather.value, airValue),
+    data: mergeForecast(weather.value, airValue, rain.status === "fulfilled" ? rain.value : null),
     aqi: airValue?.current?.european_aqi ?? null
   };
 }
@@ -75,3 +78,4 @@ export async function fetchPlaceName(id, lang) {
   const place = await fetchPlace(id, lang);
   return [place.name, place.country].filter(Boolean).join(", ");
 }
+

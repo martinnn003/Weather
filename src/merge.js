@@ -12,9 +12,24 @@ export const MERGE = {
   seam: { start: 96, end: 120 },
   blended: ["temperature_2m", "apparent_temperature", "relative_humidity_2m",
     "cloud_cover", "cloud_cover_low", "wind_gusts_10m"],
-  // ECMWF's for all ten days. The chance of rain goes with the rain it is a chance of.
+  // ECMWF's for all ten days, but for the first days' rain below. The chance of rain stays
+  // ECMWF's throughout, and so does the split of the rain into rain and snow.
   ecmwfOnly: ["precipitation", "snowfall", "wind_speed_10m", "wind_direction_10m",
     "precipitation_probability"],
+  // The rain of the first `hours` from the start of the series, today, tomorrow and the day
+  // after, is the mean of six models: the two above and `models`, asked for apart since
+  // only their rain is wanted. It is the mean of those present, if at least `least` are,
+  // and ECMWF's otherwise. Scored against the 12-hour totals of 28 Bulgarian stations from
+  // 10 September to 8 November 2026 (verification/verify_rain.py), ECMWF alone, the best
+  // single model, caught 92% of the wet windows on the day and 89% a day ahead, and the
+  // mean 97% and 93%, with totals as true and smaller errors in millimetres; from the
+  // third day on the mean calls more rain that never falls, and ECMWF is kept.
+  rainMean: {
+    models: ["dwd_icon_eu", "gfs_global", "ukmo_global_deterministic_10km",
+      "meteofrance_arpege_europe"],
+    hours: 72,
+    least: 3
+  },
   // ICON Global's until the seam ends, ECMWF's after it: a category has no halfway, and the
   // rest are only ever read for the hour that is now — all but CAPE, which goes with the
   // code, so a storm is weighed by the instability of the model that called it. The
@@ -54,7 +69,7 @@ export const MERGE = {
     stormCape: 100
   },
   // How ?debug=1 names a reading's origin.
-  labels: { icon: "ICON Global", ecmwf: "IFS", blend: "ICON Global→IFS" }
+  labels: { icon: "ICON Global", ecmwf: "IFS", blend: "ICON Global→IFS", mean: "mean of models" }
 };
 
 // WMO codes from here up all fall from the sky: drizzle, rain, snow, showers, storms.
@@ -133,6 +148,38 @@ export function forecastQuery() {
   return `&hourly=${[...blended, ...ecmwfOnly, ...switched].join(",")}&models=${icon},${ecmwf}`;
 }
 
+// The other models' rain, for the first days' mean: rain alone, and only as far as the mean reaches.
+export function rainQuery() {
+  const { models, hours } = MERGE.rainMean;
+  return `&hourly=precipitation&models=${models.join(",")}&forecast_days=${hours / 24}`;
+}
+
+// Replaces the first days' rain, ECMWF's so far, with the mean of every model that has the
+// hour, to a tenth, as the site prints it. `others` is the answer to rainQuery(), or null.
+// ECMWF's snowfall is scaled with it, so that its share of the water, which snowShare
+// reads, is ECMWF's still; where ECMWF had no rain its snowfall stays 0, and only the
+// temperature can make the mean's rain snow.
+function meanRain(raw, others, hourly, sources) {
+  const { icon, ecmwf, rainMean: { models, hours, least } } = MERGE;
+  const at = new Map((others?.hourly?.time ?? []).map((time, k) => [time, k]));
+  hourly.time.slice(0, hours).forEach((time, i) => {
+    const k = at.get(time);
+    const values = [
+      raw.hourly[`precipitation_${icon}`]?.[i],
+      raw.hourly[`precipitation_${ecmwf}`]?.[i],
+      ...models.map(model => (k == null ? null : others.hourly[`precipitation_${model}`]?.[k]))
+    ].filter(v => v != null);
+    if (values.length < least) return;
+    const mean = Math.round(values.reduce((total, v) => total + v, 0) / values.length * 10) / 10;
+    const own = hourly.precipitation[i];
+    if (own > 0 && hourly.snowfall[i] != null) {
+      hourly.snowfall[i] = Math.round(hourly.snowfall[i] * mean / own * 100) / 100;
+    }
+    hourly.precipitation[i] = mean;
+    sources.precipitation[i] = "mean";
+  });
+}
+
 // Either model stands in for the other wherever the other has nothing.
 const prefer = (value, source, standIn, standInSource) => {
   if (value != null) return [value, source];
@@ -204,8 +251,9 @@ function dayIcon(hours, hourly, rain) {
 
 // `air` is the air-quality answer, or null when it failed. Neither model carries UV, so
 // UV is CAMS's from there; it reaches about five days, and past them a day has no UV
-// rather than a guessed one.
-export function mergeForecast(raw, air = null) {
+// rather than a guessed one. `others` is the other models' rain, from rainQuery(), or
+// null when it failed, and then the rain is ECMWF's from the first hour.
+export function mergeForecast(raw, air = null, others = null) {
   const { icon, ecmwf, seam, blended, ecmwfOnly, switched, instant } = MERGE;
   const times = raw.hourly.time;
   const hourly = { time: times };
@@ -236,6 +284,8 @@ export function mergeForecast(raw, air = null) {
       ? prefer(a, "icon", b, "ecmwf")
       : prefer(b, "ecmwf", a, "icon")));
   }
+
+  meanRain(raw, others, hourly, sources);
 
   const modelCode = hourly.weather_code;
   hourly.weather_code = times.map((_, i) => hourCode(modelCode[i], hourly.precipitation[i],

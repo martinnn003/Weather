@@ -102,7 +102,13 @@ The data sources, none of which need an account or a key:
   `forecast_days=10`. `src/merge.js` combines them hour by hour, each reading from the
   model that is stronger for it at that range: temperature, humidity, cloud and gusts
   are ICON Global's for the first 96 hours, slide linearly into ECMWF's by hour 120 and are
-  ECMWF's after; rain, snowfall and wind are ECMWF's throughout. Where one model has
+  ECMWF's after; snowfall, wind and the chance of rain are ECMWF's throughout. Rain is
+  the mean of six models for the first 72 hours (today, tomorrow and the day after):
+  the two above and DWD's ICON-EU, NOAA's GFS, the Met Office's UKMO 10 km and
+  Météo-France's ARPEGE Europe, which a second request asks for their rain alone; from the
+  fourth day on, and whenever that request fails, it is ECMWF's.
+  `verification/verify_rain.py` scored the choice against the 12-hour rain totals of 28
+  Bulgarian SYNOP stations. Where one model has
   no value, the other's is used. The icons are not the models' weather codes but are
   built from the merged readings, so an icon can never contradict the rain printed
   under it: an hour from 0.1 mm and a day from 0.2 mm show rain (snow if ECMWF has

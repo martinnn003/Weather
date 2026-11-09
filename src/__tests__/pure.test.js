@@ -5,7 +5,7 @@ import { CODES, groupFor, iconUrl, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
-import { MERGE, daySources, forecastQuery, mergeForecast } from "../merge.js";
+import { MERGE, daySources, forecastQuery, mergeForecast, rainQuery } from "../merge.js";
 import { searchLangFor } from "../api.js";
 
 describe("translations", () => {
@@ -254,10 +254,63 @@ describe("merging the models", () => {
       .toEqual(["icon", "blend", "ecmwf"]);
   });
 
-  it("takes rain and wind from ECMWF from the very first hour", () => {
-    const { hourly } = mergeForecast(twoModels());
+  it("takes rain and wind from ECMWF from the very first hour without the other models", () => {
+    const { hourly, sources } = mergeForecast(twoModels());
     expect(hourly.precipitation[0]).toBe(0);
+    expect(sources.precipitation[0]).toBe("ecmwf");
     expect(hourly.wind_speed_10m[0]).toBe(5);
+  });
+
+  // The other models' answer to rainQuery(): three days of rain, a model a series.
+  const others = (raw, make) => {
+    const time = raw.hourly.time.slice(0, MERGE.rainMean.hours);
+    return {
+      hourly: {
+        time,
+        ...Object.fromEntries(MERGE.rainMean.models.map((model, m) =>
+          [`precipitation_${model}`, time.map((_, i) => make(m, i))]))
+      }
+    };
+  };
+
+  it("takes the first three days' rain as the mean of the six models, to a tenth", () => {
+    const raw = twoModels(); // ICON Global 1 mm an hour, ECMWF 0
+    const { hourly, sources, daily, current } = mergeForecast(raw, null, others(raw, m => m * 0.5));
+    // (1 + 0 + 0 + 0.5 + 1 + 1.5) / 6 = 0.67, printed 0.7
+    expect(hourly.precipitation[0]).toBe(0.7);
+    expect(hourly.precipitation[MERGE.rainMean.hours - 1]).toBe(0.7);
+    expect(sources.precipitation[0]).toBe("mean");
+    expect(current.precipitation).toBe(0.7);
+    expect(daily.precipitation_sum[0]).toBe(16.8);
+    // From the fourth day on, ECMWF's again.
+    expect(hourly.precipitation[MERGE.rainMean.hours]).toBe(0);
+    expect(sources.precipitation[MERGE.rainMean.hours]).toBe("ecmwf");
+    expect(daySources({ hourly, sources }, "precipitation", "2026-10-01")).toBe("mean of models");
+  });
+
+  it("averages only the models that have the hour, and needs three of them", () => {
+    const raw = twoModels();
+    // Only ICON-EU has 2 mm in the first hour; in the second none of the others has a value.
+    const answer = others(raw, (m, i) => (i === 1 || m > 0 ? null : 2));
+    const { hourly, sources } = mergeForecast(raw, null, answer);
+    expect(hourly.precipitation[0]).toBe(1); // (1 + 0 + 2) / 3
+    expect([hourly.precipitation[1], sources.precipitation[1]]).toEqual([0, "ecmwf"]);
+  });
+
+  it("keeps ECMWF's split of the rain into snow when the mean changes the rain", () => {
+    const raw = twoModels({
+      [`precipitation_${MERGE.ecmwf}`]: Array.from({ length: 144 }, () => 1),
+      [`snowfall_${MERGE.ecmwf}`]: Array.from({ length: 144 }, () => 0.35) // half the water
+    });
+    const { hourly } = mergeForecast(raw, null, others(raw, () => 2.5));
+    expect(hourly.precipitation[0]).toBe(2); // (1 + 1 + 4 × 2.5) / 6
+    expect(hourly.snowfall[0]).toBe(0.7); // still half of it
+    expect(hourly.snowfall[MERGE.rainMean.hours]).toBe(0.35);
+  });
+
+  it("asks the other models for their rain alone, for three days", () => {
+    expect(rainQuery()).toBe("&hourly=precipitation&models=dwd_icon_eu,gfs_global," +
+      "ukmo_global_deterministic_10km,meteofrance_arpege_europe&forecast_days=3");
   });
 
   it("lets either model stand in where the other has nothing", () => {

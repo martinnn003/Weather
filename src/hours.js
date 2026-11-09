@@ -25,7 +25,7 @@ export function hoursForDay(data, dayIndex) {
       code: hourly.weather_code[i],
       isDay: hourly.is_day[i] === 1,
       rain: hourly.precipitation_probability[i],
-      // The rain itself, in mm, beside its chance: ECMWF's, as that is. Optional, like the wind.
+      // The rain itself, in mm, beside its chance: the merged rain (merge.js). Optional, like the wind.
       precip: hourly.precipitation?.[i],
       // Optional: an older cached answer, or a gap in the model, must not take the strip down.
       wind: hourly.wind_speed_10m?.[i],

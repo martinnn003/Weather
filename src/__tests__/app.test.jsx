@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 import { HOUR_W, HOUR_GAP } from "../hours.js";
-import { MERGE } from "../merge.js";
+import { MERGE, rainQuery } from "../merge.js";
 import { weatherFor } from "../weatherCodes.js";
 
 // A ten-day forecast, generated instead of stored so the fixture stays readable. The
@@ -77,12 +77,23 @@ const air = {
 };
 
 const respond = body => Promise.resolve({ ok: true, json: () => Promise.resolve(body) });
+
+// The forecast itself, and apart from it the other models' rain for the first three days.
+// They have none here unless a test gives them some, so the rain is the forecast's own and
+// a test that changes that rain sees its change.
+const isRain = url => url.includes("/v1/forecast") && url.includes(rainQuery());
+const isForecast = url => url.includes("/v1/forecast") && !isRain(url);
+const otherRain = (make = () => null) => {
+  const time = forecast.hourly.time.slice(0, MERGE.rainMean.hours);
+  return { hourly: { time, ...Object.fromEntries(MERGE.rainMean.models.map(m => [`precipitation_${m}`, time.map(make)])) } };
+};
 const answer = shape => respond(openMeteo(shape));
 
 // A test that needs a different answer overrides this; `beforeEach` puts it back,
 // since clearing a mock forgets its calls but keeps whatever implementation it was given.
 const defaultFetch = url => {
-  if (url.includes("/v1/forecast")) return answer(forecast);
+  if (isForecast(url)) return answer(forecast);
+  if (isRain(url)) return respond(otherRain());
   if (url.includes("air-quality")) return respond(air);
   if (url.includes("/v1/get")) {
     const place = { id: 728193, latitude: 42.15, longitude: 24.75 };
@@ -177,7 +188,7 @@ describe("the app", () => {
 
   it("leaves the wind out of a day that has none, rather than calling it calm", async () => {
     const windless = { ...forecast, hourly: { ...forecast.hourly, wind_speed_10m: each(() => null) } };
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? answer(windless)
       : defaultFetch(url)));
     show();
@@ -200,6 +211,31 @@ describe("the app", () => {
       .toBeTruthy();
   });
 
+  it("takes the first three days' rain as the six models' mean, and ECMWF's without it", async () => {
+    // The four other models rain 1.5 mm an hour over the wet afternoon: (0.3 + 0.3 + 4 × 1.5) / 6
+    // is 1.1 mm an hour, 4.4 mm a day; past the third day the rain is ECMWF's 1.2 mm.
+    const heavier = otherRain(time => {
+      const hour = Number(time.slice(11, 13));
+      return hour >= 14 && hour < 18 ? 1.5 : 0;
+    });
+    fetchStub.mockImplementation(url => (isRain(url) ? respond(heavier) : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    const forecastPanel = screen.getByRole("region", { name: "Прогноза за 10 дни" });
+    expect(within(forecastPanel).getAllByText("4.4 мм")).toHaveLength(3);
+    expect(within(forecastPanel).getAllByText("1.2 мм")).toHaveLength(7);
+
+    cleanup();
+    fetchStub.mockImplementation(url => (isRain(url)
+      ? Promise.resolve({ ok: false, status: 400 })
+      : defaultFetch(url)));
+    show();
+    await screen.findByText("София, България");
+    expect(within(screen.getByRole("region", { name: "Прогноза за 10 дни" }))
+      .getAllByText("1.2 мм")).toHaveLength(10);
+    expect(screen.queryByRole("alert")).toBeNull();
+  });
+
   it("never puts 🌦️ over 0 mm, or ☀️ over 3 mm", async () => {
     // The models' codes say the opposite of the rain: rain all through a dry first day,
     // clear skies over a second that rains a millimetre an hour from 14:00 to 17:00.
@@ -211,7 +247,7 @@ describe("the app", () => {
         precipitation: each((h, d) => (d === 1 && h >= 14 && h < 17 ? 1 : 0))
       }
     };
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? answer(contrary)
       : defaultFetch(url)));
     show();
@@ -233,7 +269,7 @@ describe("the app", () => {
       ...forecast,
       hourly: { ...forecast.hourly, precipitation: each((h, d) => (d === 0 ? 0 : null)) }
     };
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? answer(dry)
       : defaultFetch(url)));
     show();
@@ -294,7 +330,7 @@ describe("the app", () => {
 
   it("leaves an hour's feel blank when the forecast has none", async () => {
     const plain = { ...forecast, hourly: { ...forecast.hourly, apparent_temperature: undefined } };
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? answer(plain)
       : defaultFetch(url)));
     show();
@@ -307,7 +343,7 @@ describe("the app", () => {
 
   it("leaves an hour's wind blank when the forecast has none", async () => {
     const calm = { ...forecast, hourly: { ...forecast.hourly, wind_speed_10m: undefined } };
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? answer(calm)
       : defaultFetch(url)));
     show();
@@ -335,7 +371,7 @@ describe("the app", () => {
       ...forecast,
       hourly: { ...forecast.hourly, precipitation: each(h => (h === 10 ? null : 0)) }
     };
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? answer(gap)
       : defaultFetch(url)));
     show();
@@ -379,7 +415,7 @@ describe("the app", () => {
       hourly: { ...forecast.hourly, precipitation_probability: each(() => null) }
     };
     fetchStub.mockImplementation(url => {
-      if (url.includes("/v1/forecast")) return answer(unknown);
+      if (isForecast(url)) return answer(unknown);
       if (url.includes("air-quality")) return respond({ current: { european_aqi: 40 } });
       return defaultFetch(url);
     });
@@ -807,7 +843,7 @@ describe("the app", () => {
   });
 
   it("reports a failed load", async () => {
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? Promise.resolve({ ok: false, status: 500 })
       : respond({ current: {} })));
     show();
@@ -815,7 +851,7 @@ describe("the app", () => {
       "textContent", "Данните за времето не можаха да се заредят.");
   });
 
-  const forecastAsked = () => fetchStub.mock.calls.filter(([url]) => url.includes("/v1/forecast")).length;
+  const forecastAsked = () => fetchStub.mock.calls.filter(([url]) => isForecast(url)).length;
 
   it("rides out an overloaded server and a dropped connection without a word", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout"] });
@@ -823,7 +859,7 @@ describe("the app", () => {
       () => Promise.resolve({ ok: false, status: 503 }),
       () => Promise.reject(new TypeError("Failed to fetch"))
     ];
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast") && failures.length
+    fetchStub.mockImplementation(url => (isForecast(url) && failures.length
       ? failures.shift()()
       : defaultFetch(url)));
     show();
@@ -837,7 +873,7 @@ describe("the app", () => {
 
   it("gives up after the third try, and asks only once for an error that would not pass", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout"] });
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? Promise.resolve({ ok: false, status: 503 })
       : defaultFetch(url)));
     show();
@@ -847,7 +883,7 @@ describe("the app", () => {
 
     cleanup();
     fetchStub.mockClear();
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? Promise.resolve({ ok: false, status: 500 })
       : defaultFetch(url)));
     show();
@@ -856,7 +892,7 @@ describe("the app", () => {
   });
 
   it("asks again from the button beside a failed load", async () => {
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? Promise.resolve({ ok: false, status: 500 })
       : defaultFetch(url)));
     show();
@@ -870,7 +906,7 @@ describe("the app", () => {
   });
 
   it("asks again when the brand is clicked at home, so a failed home page is not stuck", async () => {
-    fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+    fetchStub.mockImplementation(url => (isForecast(url)
       ? Promise.resolve({ ok: false, status: 500 })
       : defaultFetch(url)));
     show();
@@ -887,7 +923,7 @@ describe("the app", () => {
   it("asks again a minute past every quarter hour while in view, and on coming back", async () => {
     vi.useFakeTimers({ shouldAdvanceTime: true, toFake: ["setTimeout", "clearTimeout", "Date"] });
     vi.setSystemTime(new Date(2026, 6, 26, 18, 10));
-    const asked = () => fetchStub.mock.calls.filter(([url]) => url.includes("/v1/forecast")).length;
+    const asked = () => fetchStub.mock.calls.filter(([url]) => isForecast(url)).length;
     show();
     await screen.findByText("София, България");
     expect(asked()).toBe(1);
@@ -917,7 +953,7 @@ describe("the app", () => {
       expect(bar.content).toBe("#006cac");
 
       cleanup();
-      fetchStub.mockImplementation(url => (url.includes("/v1/forecast")
+      fetchStub.mockImplementation(url => (isForecast(url)
         ? answer({ ...forecast, current: { ...forecast.current, is_day: 0 } })
         : defaultFetch(url)));
       show();
