@@ -30,6 +30,16 @@ export const MERGE = {
     hours: 72,
     least: 3
   },
+  // ICON Global's fog, before the seam ends, stands only where ECMWF or one of the models
+  // above has fog in the hour as well, provided `least` of those five have the hour at all;
+  // with fewer, ICON Global's stands alone. Against the three-hourly visibility of the same
+  // 28 stations (verification/verify_fog.py), ICON Global alone called fog four times as
+  // often as there was fog under 1 km, and nine calls in ten had none; backed by another
+  // model it calls it 2.7 times as often, about as often as there is fog or mist under 5 km,
+  // with fewer false calls and a CSI higher on the day, a day ahead and four days ahead.
+  // GFS and ARPEGE never call fog, nor ECMWF past its newest run, so it is mostly ICON-EU
+  // and UKMO that back it.
+  fogBacking: { hours: 120, least: 3 },
   // ICON Global's until the seam ends, ECMWF's after it: a category has no halfway, and the
   // rest are only ever read for the hour that is now — all but CAPE, which goes with the
   // code, so a storm is weighed by the instability of the model that called it. The
@@ -160,14 +170,32 @@ export function forecastQuery() {
   return `&hourly=${[...blended, ...ecmwfOnly, ...switched].join(",")}&models=${icon},${ecmwf}`;
 }
 
-// The other models' rain, for the first days' mean: rain alone, and only as far as the mean reaches.
-export function rainQuery() {
-  const { models, hours } = MERGE.rainMean;
-  return `&hourly=precipitation&models=${models.join(",")}&forecast_days=${hours / 24}`;
+// The other models' rain, for the first days' mean, and their weather code, to back ICON
+// Global's fog: nothing else of theirs, and only as far as either reaches.
+export function othersQuery() {
+  const { rainMean: { models, hours }, fogBacking } = MERGE;
+  const days = Math.max(hours, fogBacking.hours) / 24;
+  return `&hourly=precipitation,weather_code&models=${models.join(",")}&forecast_days=${days}`;
+}
+
+// ICON Global's fog in `codes`, the merged models' codes, dropped wherever enough of the
+// other models have the hour and none of them has fog. A dropped hour's icon is its sky's.
+function backFog(raw, others, codes) {
+  const { ecmwf, rainMean: { models }, fogBacking: { hours, least } } = MERGE;
+  const at = new Map((others?.hourly?.time ?? []).map((time, k) => [time, k]));
+  return codes.map((code, i) => {
+    if (i >= hours || !isFog(code)) return code;
+    const k = at.get(raw.hourly.time[i]);
+    const backers = [
+      raw.hourly[`weather_code_${ecmwf}`]?.[i],
+      ...models.map(model => (k == null ? null : others.hourly[`weather_code_${model}`]?.[k]))
+    ].filter(v => v != null);
+    return backers.length >= least && !backers.some(isFog) ? null : code;
+  });
 }
 
 // Replaces the first days' rain, ECMWF's so far, with the mean of every model that has the
-// hour, to a tenth, as the site prints it. `others` is the answer to rainQuery(), or null.
+// hour, to a tenth, as the site prints it. `others` is the answer to othersQuery(), or null.
 // ECMWF's snowfall is scaled with it, so that its share of the water, which snowShare
 // reads, is ECMWF's still; where ECMWF had no rain its snowfall stays 0, and only the
 // temperature can make the mean's rain snow.
@@ -264,8 +292,9 @@ function dayIcon(hours, hourly, rain) {
 
 // `air` is the air-quality answer, or null when it failed. Neither model carries UV, so
 // UV is CAMS's from there; it reaches about five days, and past them a day has no UV
-// rather than a guessed one. `others` is the other models' rain, from rainQuery(), or
-// null when it failed, and then the rain is ECMWF's from the first hour.
+// rather than a guessed one. `others` is the other models' rain and codes, from
+// othersQuery(), or null when it failed, and then the rain is ECMWF's from the first hour
+// and ICON Global's fog stands alone.
 export function mergeForecast(raw, air = null, others = null) {
   const { icon, ecmwf, seam, blended, ecmwfOnly, switched, instant } = MERGE;
   const times = raw.hourly.time;
@@ -300,7 +329,7 @@ export function mergeForecast(raw, air = null, others = null) {
 
   meanRain(raw, others, hourly, sources);
 
-  const modelCode = hourly.weather_code;
+  const modelCode = backFog(raw, others, hourly.weather_code);
   hourly.weather_code = times.map((_, i) => hourCode(modelCode[i], hourly.precipitation[i],
     hourly.snowfall[i], hourly.temperature_2m[i], hourly.cloud_cover[i], hourly.cape[i]));
 

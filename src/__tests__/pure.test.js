@@ -5,7 +5,7 @@ import { CODES, groupFor, iconUrl, weatherFor } from "../weatherCodes.js";
 import { aqiBand, formatters } from "../format.js";
 import { hoursForDay, sparkGeometry, HOUR_W, HOUR_GAP } from "../hours.js";
 import { pathFor, placeFromUrl, samePlace } from "../place.js";
-import { MERGE, daySources, forecastQuery, mergeForecast, rainQuery } from "../merge.js";
+import { MERGE, daySources, forecastQuery, mergeForecast, othersQuery } from "../merge.js";
 import { searchLangFor } from "../api.js";
 
 describe("translations", () => {
@@ -264,7 +264,7 @@ describe("merging the models", () => {
     expect(hourly.wind_speed_10m[0]).toBe(5);
   });
 
-  // The other models' answer to rainQuery(): three days of rain, a model a series.
+  // The other models' answer to othersQuery(): three days of rain, a model a series.
   const others = (raw, make) => {
     const time = raw.hourly.time.slice(0, MERGE.rainMean.hours);
     return {
@@ -311,9 +311,41 @@ describe("merging the models", () => {
     expect(hourly.snowfall[MERGE.rainMean.hours]).toBe(0.35);
   });
 
-  it("asks the other models for their rain alone, for three days", () => {
-    expect(rainQuery()).toBe("&hourly=precipitation&models=dwd_icon_eu,gfs_global," +
-      "ukmo_global_deterministic_10km,meteofrance_arpege_europe&forecast_days=3");
+  it("asks the other models for their rain and codes alone, for five days", () => {
+    expect(othersQuery()).toBe("&hourly=precipitation,weather_code&models=dwd_icon_eu,gfs_global," +
+      "ukmo_global_deterministic_10km,meteofrance_arpege_europe&forecast_days=5");
+  });
+
+  // ICON Global calls fog at 06:00 every day, under a sky of 10% cloud; ECMWF says clear.
+  // `codes(m, day)` is the other models' code at that hour, for their five days.
+  const foggy = codes => {
+    const raw = twoModels({
+      [`precipitation_${MERGE.icon}`]: Array.from({ length: 144 }, () => 0),
+      [`weather_code_${MERGE.icon}`]: Array.from({ length: 144 }, (_, i) => (i % 24 === 6 ? 45 : 0))
+    });
+    const time = raw.hourly.time.slice(0, MERGE.fogBacking.hours);
+    const answer = { hourly: { time, ...Object.fromEntries(MERGE.rainMean.models.map((model, m) =>
+      [`weather_code_${model}`, time.map((_, i) => (i % 24 === 6 ? codes(m, Math.floor(i / 24)) : 0))])) } };
+    return mergeForecast(raw, null, answer).hourly.weather_code;
+  };
+
+  it("keeps ICON Global's fog only where another model has fog too", () => {
+    // Day one: ICON-EU has fog as well. Day two: UKMO has rime fog. Day three: no one else.
+    const backed = [[45, 0, 0, 0], [0, 0, 48, 0], [0, 0, 0, 0]];
+    const codes = foggy((m, d) => backed[d]?.[m] ?? 0);
+    expect([0, 1, 2].map(d => codes[d * 24 + 6])).toEqual([45, 45, 0]); // its sky, 10%: clear
+  });
+
+  it("lets ICON Global's fog stand alone where too few others have the hour, and past five days", () => {
+    // ECMWF and one other model have the hour; the rest have nothing.
+    const codes = foggy((m, d) => (m === 0 ? 0 : null));
+    expect(codes[6]).toBe(45);
+    // With no answer at all, as before.
+    const raw = twoModels({ [`weather_code_${MERGE.icon}`]: Array.from({ length: 144 }, (_, i) => (i === 6 ? 45 : 0)),
+      [`precipitation_${MERGE.icon}`]: Array.from({ length: 144 }, () => 0) });
+    expect(mergeForecast(raw).hourly.weather_code[6]).toBe(45);
+    // Past the backing's reach the merged code is ECMWF's, and its fog is its own.
+    expect(MERGE.fogBacking.hours).toBe(MERGE.seam.end);
   });
 
   it("lets either model stand in where the other has nothing", () => {

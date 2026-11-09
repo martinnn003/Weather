@@ -185,7 +185,7 @@ def forecasts(station, sid, start, end):
         "hourly": ",".join(variables), "models": ",".join(MODELS),
         "start_date": start - timedelta(days=1), "end_date": end + timedelta(days=1),
         "timezone": "GMT"})
-    final = end < datetime.utcnow().date() - timedelta(days=1)
+    final = end < datetime.utcnow().date()  # a past day's forecasts no longer change
     body = cached(f"forecasts/{sid}_{start}_{end}.json", f"{PREVIOUS_RUNS}?{query}", keep=final)
     hourly = json.loads(body)["hourly"]
     index = pd.to_datetime(hourly["time"])

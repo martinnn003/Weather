@@ -106,7 +106,9 @@ The data sources, none of which need an account or a key:
   the mean of six models for the first 72 hours (today, tomorrow and the day after):
   the two above and DWD's ICON-EU, NOAA's GFS, the Met Office's UKMO 10 km and
   Météo-France's ARPEGE Europe, which a second request asks for their rain alone; from the
-  fourth day on, and whenever that request fails, it is ECMWF's.
+  fourth day on, and whenever that request fails, it is ECMWF's. The same request brings
+  those four models' weather codes for five days, and ICON Global's fog is shown only
+  where ECMWF or one of them has fog in the hour too (`verification/verify_fog.py`).
   `verification/verify_rain.py` scored the choice against the 12-hour rain totals of 28
   Bulgarian SYNOP stations. Where one model has
   no value, the other's is used. The icons are not the models' weather codes but are

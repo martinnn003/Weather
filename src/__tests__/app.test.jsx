@@ -4,7 +4,7 @@ import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testi
 import App from "../App.jsx";
 import { SettingsProvider } from "../settings.jsx";
 import { HOUR_W, HOUR_GAP } from "../hours.js";
-import { MERGE, rainQuery } from "../merge.js";
+import { MERGE, othersQuery } from "../merge.js";
 import { weatherFor } from "../weatherCodes.js";
 
 // A ten-day forecast, generated instead of stored so the fixture stays readable. The
@@ -81,7 +81,7 @@ const respond = body => Promise.resolve({ ok: true, json: () => Promise.resolve(
 // The forecast itself, and apart from it the other models' rain for the first three days.
 // They have none here unless a test gives them some, so the rain is the forecast's own and
 // a test that changes that rain sees its change.
-const isRain = url => url.includes("/v1/forecast") && url.includes(rainQuery());
+const isRain = url => url.includes("/v1/forecast") && url.includes(othersQuery());
 const isForecast = url => url.includes("/v1/forecast") && !isRain(url);
 const otherRain = (make = () => null) => {
   const time = forecast.hourly.time.slice(0, MERGE.rainMean.hours);
